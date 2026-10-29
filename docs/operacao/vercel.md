@@ -15,7 +15,7 @@ Produção e Preview devem ter banco, buckets e credenciais independentes. As va
 
 ### Isolamento de Preview
 
-A integração Neon gerenciada fornece credenciais somente a Production, sem criação automática de branches por deployment. Preview usa uma conexão explícita para a base `linkatletas_preview`, em outro branch Neon, com usuário exclusivo sem `CREATEROLE`, `CREATEDB` ou `BYPASSRLS`. Aplicar as migrações nessa base limpa; não clonar dados pessoais ou sessões de produção. As credenciais de produção não devem aparecer nos aliases `DATABASE_*` de Preview.
+Production e Preview usam conexões explícitas para branches e bases separados no Neon, sem criar branches automaticamente por deployment. Preview usa a base `linkatletas_preview`. Cada ambiente possui uma conta de execução sem propriedade das tabelas, `TRUNCATE`, `CREATEROLE`, `CREATEDB` ou `BYPASSRLS`. Credenciais de manutenção ficam fora do deploy; aplicar migrations com a conta de manutenção. Não clonar dados pessoais ou sessões de produção. Os deployments recebem somente `DATABASE_URL` como variável de conexão; aliases com credenciais de proprietário devem ser removidos. Consulte a [operação do Neon](neon.md).
 
 O armazenamento utiliza buckets e chaves exclusivos. As variáveis `DATA_ENCRYPTION_KEY` e `CRON_SECRET` também devem ser distintas. Não substituir a chave de cifra de produção para organizar ambientes: isso impediria a leitura de dados já cifrados.
 

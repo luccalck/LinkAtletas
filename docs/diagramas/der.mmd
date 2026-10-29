@@ -38,7 +38,7 @@ erDiagram
   reviews ||--o{ review_reports : review_id
   users ||--o{ reviews : athlete_id
   users ||--o{ reviews : coach_id
-  contracts ||--o| reviews : contract_id
+  contracts ||--o{ reviews : contract_id_athlete_id_coach_id
   users ||--o{ sessions : user_id
   users ||--o{ verification_audit : reviewer_id
   verifications ||--o{ verification_audit : verification_id
