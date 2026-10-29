@@ -70,8 +70,8 @@ describe('backup cifrado do Neon', () => {
   it('remove parametros capazes de redirecionar o driver para outro destino', () => {
     const restored = restoreDatabase('postgresql://teste:teste@127.0.0.1/restauracao_test?host=externo.example&dbname=production&sslmode=require')
     const source = sourceDatabase('postgresql://reader:senha@ep-demo.neon.tech/neondb?host=externo.example&sslmode=disable')
-    expect(new pg.Client({ connectionString: restored.toString() }).connectionParameters.host).toBe('127.0.0.1')
-    expect(new pg.Client({ connectionString: source.toString() }).connectionParameters.host).toBe('ep-demo.neon.tech')
+    expect((Reflect.get(new pg.Client({ connectionString: restored.toString() }), 'connectionParameters') as { host: string }).host).toBe('127.0.0.1')
+    expect((Reflect.get(new pg.Client({ connectionString: source.toString() }), 'connectionParameters') as { host: string }).host).toBe('ep-demo.neon.tech')
     expect(restored.search).toBe('?sslmode=disable')
     expect(source.search).toBe('?sslmode=verify-full')
   })
