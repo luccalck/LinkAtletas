@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
+import pg from 'pg'
 import { describe, expect, it } from 'vitest'
-import { backupKey, decodeBackup, encodeBackup, expiredBackups, restoreDatabase, sourceDatabase } from '../../scripts/banco/neon-backup-shared.js'
+import { backupKey, decodeBackup, encodeBackup, expiredBackups, postgresFailure, restoreDatabase, sourceDatabase } from '../../scripts/banco/neon-backup-shared.js'
 
 const archive = {
   version: 1 as const,
@@ -12,6 +13,11 @@ const archive = {
 }
 
 describe('backup cifrado do Neon', () => {
+  it('classifica erros sem publicar stderr ou dados privados', () => {
+    expect(postgresFailure('ERROR: schema "public" already exists')).toContain('[PUBLIC_SCHEMA_EXISTS]')
+    expect(postgresFailure('ERROR: function public.gen_random_uuid() does not exist')).toContain('[FUNCTION_MISSING]')
+    expect(postgresFailure('DETAIL: chave e dado privado')).toBe('Comando PostgreSQL falhou [COMMAND_FAILED].')
+  })
   it('cifra e autentica o dump e seu manifesto com nonce exclusivo', () => {
     const key = randomBytes(32)
     const first = encodeBackup(archive, key)
@@ -59,5 +65,14 @@ describe('backup cifrado do Neon', () => {
     expect(restoreDatabase('postgresql://teste:teste@127.0.0.1:54338/restauracao_test').pathname).toBe('/restauracao_test')
     expect(() => restoreDatabase('postgresql://teste:teste@localhost/producao')).toThrow()
     expect(() => restoreDatabase('postgresql://teste:teste@ep-demo.neon.tech/restauracao_test')).toThrow()
+  })
+
+  it('remove parametros capazes de redirecionar o driver para outro destino', () => {
+    const restored = restoreDatabase('postgresql://teste:teste@127.0.0.1/restauracao_test?host=externo.example&dbname=production&sslmode=require')
+    const source = sourceDatabase('postgresql://reader:senha@ep-demo.neon.tech/neondb?host=externo.example&sslmode=disable')
+    expect((Reflect.get(new pg.Client({ connectionString: restored.toString() }), 'connectionParameters') as { host: string }).host).toBe('127.0.0.1')
+    expect((Reflect.get(new pg.Client({ connectionString: source.toString() }), 'connectionParameters') as { host: string }).host).toBe('ep-demo.neon.tech')
+    expect(restored.search).toBe('?sslmode=disable')
+    expect(source.search).toBe('?sslmode=verify-full')
   })
 })

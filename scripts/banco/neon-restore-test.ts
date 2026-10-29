@@ -18,8 +18,9 @@ export async function verifyNeonBackup(objectKey: string) {
     if (archive.dataKeyFingerprint !== required('NEON_BACKUP_DATA_KEY_FINGERPRINT')) throw new Error('Chave de dados original nao corresponde ao manifesto.')
     await database.connect()
     connected = true
-    const existing = await database.query("SELECT count(*)::int AS total FROM pg_tables WHERE schemaname='public'")
+    const existing = await database.query("SELECT count(*)::int AS total FROM (SELECT oid FROM pg_class WHERE relnamespace=to_regnamespace('public') UNION ALL SELECT oid FROM pg_proc WHERE pronamespace=to_regnamespace('public') UNION ALL SELECT oid FROM pg_type WHERE typnamespace=to_regnamespace('public')) objects")
     if (existing.rows[0].total) throw new Error('Restauracao exige destino vazio; nenhum dado foi removido.')
+    await database.query('DROP SCHEMA IF EXISTS public')
     await postgresCommand('pg_restore', url, ['--dbname', decodeURIComponent(url.pathname.slice(1)), '--no-owner', '--no-privileges', '--exit-on-error', '--single-transaction'], Buffer.from(archive.dumpBase64, 'base64'))
     const tables = (await database.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")).rows.map(row => row.tablename as string)
     if (JSON.stringify(tables) !== JSON.stringify(Object.keys(archive.tableCounts).sort())) throw new Error('Tabelas restauradas divergem do manifesto.')
@@ -39,5 +40,9 @@ export async function verifyNeonBackup(objectKey: string) {
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  verifyNeonBackup(process.argv[2] || '').catch(() => { console.error('Verificacao de restauracao Neon falhou.'); process.exitCode = 1 })
+  verifyNeonBackup(process.argv[2] || '').catch(error => {
+    console.error('Verificacao de restauracao Neon falhou.')
+    if (error instanceof Error && /^Comando PostgreSQL falhou \[[A-Z_]+\]\.$/.test(error.message)) console.error(error.message)
+    process.exitCode = 1
+  })
 }

@@ -62,6 +62,7 @@ export function sourceDatabase(value: string) {
   const labels = url.hostname.split('.')
   labels[0] = labels[0].replace(/-pooler$/, '')
   url.hostname = labels.join('.')
+  url.search = ''
   url.searchParams.set('sslmode', 'verify-full')
   return url
 }
@@ -70,6 +71,7 @@ export function restoreDatabase(value: string) {
   const url = new URL(value)
   if (!['postgresql:', 'postgres:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
       !decodeURIComponent(url.pathname.slice(1)).endsWith('_test')) throw new Error('Restauracao exige base local isolada com sufixo _test.')
+  url.search = ''
   url.searchParams.set('sslmode', 'disable')
   return url
 }
@@ -78,6 +80,17 @@ export function required(name: string) {
   const value = process.env[name]
   if (!value) throw new Error('Configuracao de backup ausente: ' + name)
   return value
+}
+
+export function postgresFailure(stderr: string) {
+  const cases: [RegExp, string][] = [
+    [/schema "public" already exists/i, 'PUBLIC_SCHEMA_EXISTS'],
+    [/function [^\r\n]+ does not exist/i, 'FUNCTION_MISSING'],
+    [/permission denied/i, 'PERMISSION_DENIED'],
+    [/authentication failed/i, 'AUTHENTICATION_FAILED'],
+    [/connection [^\r\n]+ failed|could not connect/i, 'CONNECTION_FAILED'],
+  ]
+  return 'Comando PostgreSQL falhou [' + (cases.find(([pattern]) => pattern.test(stderr))?.[1] || 'COMMAND_FAILED') + '].'
 }
 
 export function backupStorage() {
@@ -105,7 +118,8 @@ export async function postgresCommand(tool: 'pg_dump' | 'pg_restore', url: URL, 
     ...Object.keys(variables).flatMap(name => ['--env', name]),
     'postgres:18-alpine', tool, ...args,
   ], { env: { ...process.env, ...variables }, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-  child.stderr.resume()
+  let stderr = ''
+  child.stderr.on('data', (chunk: Buffer) => { if (stderr.length < 16384) stderr += chunk.toString('utf8').slice(0, 16384 - stderr.length) })
   child.stdin.on('error', () => {})
   const output: Buffer[] = []
   let size = 0
@@ -116,7 +130,7 @@ export async function postgresCommand(tool: 'pg_dump' | 'pg_restore', url: URL, 
       output.push(chunk)
     })
     child.once('error', () => reject(new Error('Cliente PostgreSQL indisponivel.')))
-    child.once('close', code => code === 0 ? resolve(Buffer.concat(output)) : reject(new Error('Comando PostgreSQL falhou.')))
+    child.once('close', code => code === 0 ? resolve(Buffer.concat(output)) : reject(new Error(postgresFailure(stderr))))
   })
   const timeout = setTimeout(() => child.kill(), 180000)
   try {
