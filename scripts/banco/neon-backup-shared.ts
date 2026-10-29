@@ -62,6 +62,7 @@ export function sourceDatabase(value: string) {
   const labels = url.hostname.split('.')
   labels[0] = labels[0].replace(/-pooler$/, '')
   url.hostname = labels.join('.')
+  url.search = ''
   url.searchParams.set('sslmode', 'verify-full')
   return url
 }
@@ -70,6 +71,7 @@ export function restoreDatabase(value: string) {
   const url = new URL(value)
   if (!['postgresql:', 'postgres:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
       !decodeURIComponent(url.pathname.slice(1)).endsWith('_test')) throw new Error('Restauracao exige base local isolada com sufixo _test.')
+  url.search = ''
   url.searchParams.set('sslmode', 'disable')
   return url
 }
