@@ -4,7 +4,7 @@ Para desenvolvimento local use dados fictícios. A [aplicação pública](https:
 
 ## Instalação local
 
-Requisitos: Node.js 24, pnpm 10 e Docker Desktop com engine ativo. Na raiz do repositório:
+Requisitos: Node.js 24.22.2, pnpm 10.34.9 e Docker Desktop com engine ativo. Na raiz do repositório:
 
 ```powershell
 pnpm install --frozen-lockfile

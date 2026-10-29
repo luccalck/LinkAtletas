@@ -4,6 +4,8 @@ Plataforma que conecta atletas a treinadores e reúne perfis esportivos, contrat
 
 [Acessar aplicação](https://link-atletas.vercel.app) · [Documentação](docs/README.md)
 
+Repositório de trabalho: [luccalck/linkatletas](https://github.com/luccalck/linkatletas), independente e administrado por Lucca. O histórico e as contribuições da equipe foram preservados. O repositório anterior do grupo e o fork anterior continuam disponíveis para consulta.
+
 Para localizar cada assunto, usar o [índice da documentação atual](docs/README.md), o [guia da interface web](src/README.md), o [guia do servidor](server/README.md), o [índice dos scripts](scripts/README.md) e o [índice dos testes](tests/README.md).
 
 ## Funcionalidades
@@ -37,7 +39,7 @@ O site público utiliza contas próprias de atleta, treinador e administrador. A
 
 ## Executar localmente
 
-Pré-requisitos: Node.js 24, pnpm 10.33.2 e Docker Desktop em execução. Na primeira instalação:
+Pré-requisitos: Node.js 24.22.2, pnpm 10.34.9 e Docker Desktop em execução. Na primeira instalação:
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -81,7 +83,7 @@ docs/         documentação atual, evidências e histórico acadêmico
 .github/      automações de verificação e compilação Android
 ```
 
-Os scripts estão divididos em banco, documentação, operação, verificação e Android. A documentação atual separa requisitos, banco, operação, gestão, testes e apresentação; as evidências ficam agrupadas por assunto e execução. As configurações de Node, Vite, TypeScript, Docker e Vercel permanecem na raiz, onde suas ferramentas as utilizam.
+Os scripts estão divididos em banco, documentação, operação, verificação e Android. A documentação atual separa API, banco, diagramas, evidências, operação, referências e requisitos. As configurações de Node, Vite, TypeScript, Docker e Vercel permanecem na raiz, onde suas ferramentas as utilizam.
 
 ## Documentação e entrega
 

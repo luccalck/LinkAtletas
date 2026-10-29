@@ -64,7 +64,7 @@
   "engines": {
     "node": ">=24 <25"
   },
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@10.34.9",
   "pnpm": {
     "overrides": {
       "@fastify/static>content-disposition": "2.0.1",

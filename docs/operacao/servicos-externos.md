@@ -6,8 +6,8 @@ A aplicação pública usa os serviços abaixo e funciona com o computador e o D
 
 | Serviço | Função | Referência |
 |---|---|---|
-| GitHub | Código, documentos e histórico de contribuições. O fork pessoal é uma cópia do repositório. | [Repositório do grupo](https://github.com/DaviSouza78/LinkAtletas) e commits. |
-| GitHub Actions | Automações de testes, verificações e compilação Android. | [Execuções de CI](https://github.com/DaviSouza78/LinkAtletas/actions). Compilação não equivale a publicação em loja. |
+| GitHub | Código, documentos e histórico de contribuições. O repositório atual é independente, administrado por Lucca. | [Repositório atual](https://github.com/luccalck/linkatletas). O repositório anterior do grupo e o fork preservam o histórico de execução anterior. |
+| GitHub Actions | Automações de testes, verificações e compilação Android. | [Execuções atuais de CI](https://github.com/luccalck/linkatletas/actions). Compilação não equivale a publicação em loja. |
 | Vercel | Hospeda a interface React/Vite e executa a API Node/Fastify por HTTPS. | [Site](https://link-atletas.vercel.app/) e [API](https://link-atletas.vercel.app/api/docs/). Vite prepara a interface; Fastify atende às requisições da API. |
 | Neon | PostgreSQL remoto: contas, perfis, vínculos, treinos, mensagens e metadados dos arquivos. | [Saúde da aplicação](https://link-atletas.vercel.app/api/health), [dicionário](../banco/dicionario-dados.md) e tabelas no painel autorizado. |
 | Tigris | Arquivos em buckets privados compatíveis com S3, com cifra e acesso controlados pelo servidor. O Neon guarda as referências aos arquivos. | [Verificação de produção](../evidencias/nuvem/tigris-2026-10-26.json) e upload pela aplicação. |

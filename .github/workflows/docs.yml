@@ -1,7 +1,8 @@
 name: Documentation checks
 on:
   push:
-    paths: ['docs/**', 'README.md', '.github/workflows/docs.yml']
+    paths: ['docs/**', '**/README.md', '.github/workflows/docs.yml']
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -17,10 +18,10 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
-          version: 10.33.2
+          version: 10.34.9
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:check

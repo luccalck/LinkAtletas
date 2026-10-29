@@ -2,6 +2,8 @@
 
 A interface React/Vite e a API Node/Fastify usam o mesmo domínio. A configuração versionada em [vercel.json](../../vercel.json) define o builder, o build e o encaminhamento das requisições. O arquivo [server.ts](../../server.ts) exporta a aplicação para o runtime da Vercel.
 
+O projeto `link-atletas` publica a branch `main` de [luccalck/linkatletas](https://github.com/luccalck/linkatletas), repositório independente administrado por Lucca. O domínio público continua `link-atletas.vercel.app`. A troca de origem Git preserva o projeto, suas variáveis e as integrações com os serviços.
+
 ## Serviços e ambientes
 
 - **Neon:** PostgreSQL remoto acessado pela API usando `DATABASE_URL` com TLS.
@@ -41,9 +43,9 @@ Uploads grandes utilizam sessões autenticadas em partes. Conferir o [contrato d
 
 ## Aprovação antes da produção
 
-O Deployment Check `LinkAtletas - validacao completa`, importado do GitHub, é exigido para promoção em Production. Ele corresponde ao job de mesmo nome em `.github/workflows/ci.yml` no fork conectado à Vercel. O build pode terminar antes dos testes; a liberação do domínio deve aguardar a aprovação desse check no mesmo commit.
+O Deployment Check `LinkAtletas - validacao completa`, importado do GitHub, é exigido para promoção em Production. Ele corresponde ao job de mesmo nome em `.github/workflows/ci.yml` no repositório independente conectado à Vercel. O build pode terminar antes dos testes; a liberação do domínio deve aguardar a aprovação desse check no mesmo commit.
 
-O workflow responde a todos os pushes, inclusive documentação, e permite execução manual. Se uma publicação ficar aguardando, conferir o commit, a execução no fork e o nome do check antes de tentar novamente. Uma CI aprovada somente no repositório do grupo não substitui o resultado do fork.
+O workflow responde a todos os pushes, inclusive documentação, e permite execução manual. Se uma publicação ficar aguardando, conferir o commit, a execução em `luccalck/linkatletas` e o nome do check antes de tentar novamente. Uma CI aprovada somente no repositório anterior não substitui o resultado do repositório conectado.
 
 ## Tarefas agendadas
 

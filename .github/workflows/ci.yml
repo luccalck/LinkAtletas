@@ -3,6 +3,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      webkit_regression:
+        description: 'Repetir os fluxos WebKit tres vezes no ambiente isolado'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -31,10 +36,10 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
-          version: 10.33.2
+          version: 10.34.9
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: 24.15.0
+          node-version: 24.22.2
           cache: pnpm
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
@@ -50,6 +55,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Browser flows and accessibility
         run: pnpm test:e2e
+      - name: Repeat WebKit regression flows
+        if: github.event_name == 'workflow_dispatch' && inputs.webkit_regression
+        env:
+          EVIDENCE_DIR: docs/evidencias/webkit-regression
+        run: pnpm exec playwright test tests/e2e/training-flow.spec.ts --project=webkit --repeat-each=3
       - name: Documentation links and schemas
         run: |
           DATABASE_URL="$TEST_DATABASE_URL" node --import tsx scripts/banco/export-schema.ts
