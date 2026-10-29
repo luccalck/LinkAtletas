@@ -34,6 +34,8 @@ export async function api<T>(
       )
     }
     const body = await response.json().catch(() => null)
+    if (controller.signal.aborted)
+      throw new DOMException('Consulta cancelada.', 'AbortError')
     if (!response.ok) {
       const error = body as ApiErrorBody | null
       throw new Error(

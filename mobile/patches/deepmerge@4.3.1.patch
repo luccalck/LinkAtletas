@@ -1,13 +1,8 @@
 diff --git a/dist/cjs.js b/dist/cjs.js
-index 7c36cbdd06cc22c92d590be3f87a08a91ca06b40..783edf661271492de59738d2d2b2d0b7478a42e0 100644
+index 7c36cbdd06cc22c92d590be3f87a08a91ca06b40..a225588edd0fe44f1e19158df876980b84600f56 100644
 --- a/dist/cjs.js
 +++ b/dist/cjs.js
-@@ -65,10 +65,23 @@ function propertyIsOnObject(object, property) {
- 	try {
- 		return property in object
- 	} catch(_) {
--		return false
-+		return true
+@@ -69,6 +69,19 @@ function propertyIsOnObject(object, property) {
  	}
  }
  
@@ -62,7 +57,7 @@ index 7c36cbdd06cc22c92d590be3f87a08a91ca06b40..783edf661271492de59738d2d2b2d0b7
  }
  
 diff --git a/dist/umd.js b/dist/umd.js
-index 4071e7c56ec8e5273fe166f6e723ac460fab8b72..7c1300d7e19a6f280b8eda2e924fe5518e80a745 100644
+index 4071e7c56ec8e5273fe166f6e723ac460fab8b72..c85079d9ef41ebcdb4b1e45d27565bb28362416e 100644
 --- a/dist/umd.js
 +++ b/dist/umd.js
 @@ -66,42 +66,58 @@
@@ -84,7 +79,7 @@ index 4071e7c56ec8e5273fe166f6e723ac460fab8b72..7c1300d7e19a6f280b8eda2e924fe551
 +	try {
 +		return property in object
 +	} catch(_) {
-+		return true
++		return false
  	}
 -
 -	function mergeObject(target, source, options) {
@@ -156,15 +151,10 @@ index 4071e7c56ec8e5273fe166f6e723ac460fab8b72..7c1300d7e19a6f280b8eda2e924fe551
  		options.arrayMerge = options.arrayMerge || defaultArrayMerge;
  		options.isMergeableObject = options.isMergeableObject || isMergeableObject;
 diff --git a/index.js b/index.js
-index 77968aed5d456cccc294f60912ef381fa1e52a7b..60a01b0bbd616efdbdf1e7202a4ae422ab71f7d1 100644
+index 77968aed5d456cccc294f60912ef381fa1e52a7b..92d6382791f926a966798ff23cb8df6c9bc37069 100644
 --- a/index.js
 +++ b/index.js
-@@ -40,10 +40,23 @@ function propertyIsOnObject(object, property) {
- 	try {
- 		return property in object
- 	} catch(_) {
--		return false
-+		return true
+@@ -44,6 +44,19 @@ function propertyIsOnObject(object, property) {
  	}
  }
  
