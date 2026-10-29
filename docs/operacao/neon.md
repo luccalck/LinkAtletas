@@ -71,7 +71,7 @@ A chave do backup contém 32 bytes em base64. Preservar uma cópia segura dela e
 
 ### Recuperação e limites
 
-Para uma recuperação real, baixar a cópia autorizada e executar `node --import tsx scripts/banco/neon-restore-test.ts <chave-do-objeto>` com as variáveis de backup e `NEON_BACKUP_RESTORE_URL` apontando para PostgreSQL 18 local, vazio, com nome terminado em `_test`. O comando recusa outro host e banco ocupado. Conferir o resultado antes de planejar a migração de recuperação; esse comando não substitui produção automaticamente.
+Para uma recuperação real, baixar a cópia autorizada e executar `node --import tsx scripts/banco/neon-restore-test.ts <chave-do-objeto>` com as variáveis de backup e `NEON_BACKUP_RESTORE_URL` apontando para PostgreSQL 18 local, vazio, com nome terminado em `_test`. O comando recusa outro host e banco ocupado, incluindo tabelas, funções e tipos no esquema `public`. Remove apenas o esquema padrão comprovadamente vazio, sem `CASCADE`, para que o dump recrie sua estrutura original. Conferir o resultado antes de planejar a migração de recuperação; esse comando não substitui produção automaticamente.
 
 A cópia cobre o esquema `public` e os registros da aplicação. Não inclui roles, configuração do provedor nem os bytes dos arquivos guardados nos outros buckets Tigris. Os metadados desses arquivos estão no banco; os objetos e a chave AES original precisam de preservação própria. O teste confirma a restauração e as contagens, sem enviar conteúdo de usuários para logs.
 
