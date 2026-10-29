@@ -18,6 +18,7 @@ Cada deployment recebe apenas `DATABASE_URL`, como segredo no ambiente correspon
 - Aplicação: endpoint com `-pooler` e `sslmode=verify-full`, validando o certificado do servidor.
 - Cada pool da API admite até dez conexões e espera até cinco segundos para conectar.
 - A role limita consultas a 30 segundos, espera por locks a cinco segundos e transações ociosas a um minuto. O cliente também limita a espera de consulta a 35 segundos.
+- A transação que mantém a trava do agendador usa uma exceção local de cinco minutos, correspondente ao máximo da função Vercel. Assim, processamento de filas e serviços externos não libera a trava antecipadamente; o rollback restaura o limite normal.
 - Definir os parâmetros na role e na base correspondente. O proxy/pooler pode não preservar parâmetros enviados no startup do cliente. Verificar os valores efetivos com `current_setting`.
 - Alterações nas configurações de role afetam novas sessões; conexões já abertas podem manter valores antigos. Preparar e validar uma conta nova antes de trocar o segredo do deploy.
 - Desconexões de clientes ociosos são tratadas pelo pool sem registrar a mensagem original, que pode conter dados privados.
