@@ -96,8 +96,49 @@ describe('entrada de producao da vercel', () => {
       const response = await fetch(`${base}${path}`)
       expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toContain('text/html')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(response.headers.get('etag')).toBeNull()
+      expect(response.headers.get('last-modified')).toBeNull()
       expect(await response.text()).toContain('id="root"')
     }
+  })
+
+  it('entrega o HTML atual mesmo com validadores de uma publicacao anterior', async () => {
+    const validators: Record<string, string>[] = [
+      { 'if-modified-since': 'Fri, 01 Jan 2100 00:00:00 GMT' },
+      { 'if-none-match': 'W/"3a5-1668f272800"' },
+    ]
+    for (const path of ['/', '/mensagens', '/index.html']) {
+      for (const headers of validators) {
+        const response = await fetch(`${base}${path}`, { headers })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('cache-control')).toBe('no-store')
+        expect(await response.text()).toContain('id="root"')
+      }
+    }
+  })
+
+  it('mantem o HTML sem cache nas consultas HEAD', async () => {
+    const response = await fetch(`${base}/`, { method: 'HEAD' })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('etag')).toBeNull()
+    expect(response.headers.get('last-modified')).toBeNull()
+    expect(await response.text()).toBe('')
+  })
+
+  it('serve o JavaScript referenciado pelo HTML e permite cache dos assets versionados', async () => {
+    const html = await fetch(base).then((response) => response.text())
+    const script = html.match(/<script[^>]+src="([^"]+\.js)"/)?.[1]
+    expect(script).toMatch(/^\/assets\//)
+    const response = await fetch(`${base}${script}`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('javascript')
+    expect(response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(await response.text()).not.toContain('<!doctype html>')
+    const missing = await fetch(`${base}/assets/arquivo-antigo-inexistente.js`)
+    expect(missing.status).toBe(404)
+    expect(missing.headers.get('content-type')).toContain('application/json')
   })
 
   it('preserva a API no mesmo servidor sem devolver o HTML', async () => {

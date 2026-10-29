@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { basename, dirname } from 'node:path'
 import type { FastifyInstance } from 'fastify'
 import staticPlugin from '@fastify/static'
 import { apiPort, production } from './config.js'
@@ -35,6 +36,15 @@ export async function startServer(app: FastifyInstance, options: { listen?: bool
     await app.register(staticPlugin, {
       root: fileURLToPath(new URL('../dist/', import.meta.url)),
       prefix: '/',
+      etag: false,
+      lastModified: false,
+      setHeaders(response, filePath) {
+        if (filePath.endsWith('.html')) {
+          response.header('Cache-Control', 'no-store')
+        } else if (basename(dirname(filePath)) === 'assets' && /-[A-Za-z0-9_-]{8,}\.[^.]+$/.test(basename(filePath))) {
+          response.header('Cache-Control', 'public, max-age=31536000, immutable')
+        }
+      },
     })
   }
   if (options.listen === false) {
