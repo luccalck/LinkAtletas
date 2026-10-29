@@ -1,4 +1,4 @@
-import type { ApiErrorBody } from '../../shared/contracts'
+import type { ApiErrorBody } from '../../shared/contracts.js'
 
 export async function api<T>(
   path: string,
@@ -10,6 +10,9 @@ export async function api<T>(
   options.signal?.addEventListener('abort', abort, { once: true })
   if (options.signal?.aborted) controller.abort()
   try {
+    await Promise.resolve()
+    if (controller.signal.aborted)
+      throw new DOMException('Consulta cancelada.', 'AbortError')
     let response: Response
     try {
       response = await fetch(`/api${path}`, {

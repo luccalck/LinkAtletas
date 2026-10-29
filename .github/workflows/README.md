@@ -3,7 +3,7 @@
 | Workflow | Disparo | Funcao |
 |---|---|---|
 | [ci.yml](ci.yml) | Todos os pushes, pull request ou execucao manual | Tipos/build, unidade/API, navegador, backup, esquema/diagramas, verificacoes moveis e HTTPS local. |
-| [docs.yml](docs.yml) | Push de documentacao | Links locais e contratos documentados, sem iniciar servicos. |
+| [docs.yml](docs.yml) | Push de documentacao/README ou execucao manual | Links locais e contratos documentados, sem iniciar servicos. |
 | [android.yml](android.yml) | Manual ou chamada por outro workflow | Compilacao, inicializacao e ensaio integrado do APK. |
 
 ## Android
@@ -14,11 +14,11 @@ Selecionar o perfil `local` ou `cloud` e o modo:
 - `startup`: compila ou baixa um APK e confere instalacao/tela de login no emulador, sem login de usuario nem alteracao de dados pela API.
 - `integrated`: somente perfil local; testa atleta, treinador e administrador com API, PostgreSQL, SMTP capturado e S3 isolados.
 
-`apk_run_id` e opcional: informa uma execucao deste workflow que gerou um APK do mesmo perfil. Vazio significa compilar novamente. O download verifica o SHA-256; commit do APK e do roteiro podem ser diferentes e devem ser conferidos no resultado. Nao ha run antigo ou URL ficticia como padrao.
+`apk_run_id` e opcional: informa uma execucao deste workflow, neste mesmo repositorio, que gerou um APK do mesmo perfil. Vazio significa compilar novamente. Todos os modos verificam o SHA-256 depois de gerar ou baixar o arquivo, inclusive `build` com APK reutilizado. Commit do APK e do roteiro podem ser diferentes e devem ser conferidos no resultado. Runs do repositorio anterior continuam la e nao podem ser usados diretamente como `apk_run_id` no novo repositorio.
 
 ```powershell
-gh workflow run android.yml --repo DaviSouza78/LinkAtletas --ref main -f build_profile=cloud -f mode=build
-gh workflow run android.yml --repo DaviSouza78/LinkAtletas --ref main -f build_profile=local -f mode=integrated
+gh workflow run android.yml --repo luccalck/linkatletas --ref main -f build_profile=cloud -f mode=build
+gh workflow run android.yml --repo luccalck/linkatletas --ref main -f build_profile=local -f mode=integrated
 ```
 
 O teste integrado nunca cria fixtures em producao. Nenhum modo autoriza automaticamente uma conta Google pessoal. APK usa assinatura de desenvolvimento; emulador nao comprova homologacao fisica, iOS ou publicacao em lojas. Os testes Android rodam no runner do GitHub, sem abrir emulador no computador do integrante.
@@ -33,7 +33,7 @@ As credenciais de banco, SMTP e S3 declaradas nos ensaios sao exclusivas do ambi
 
 ## Check de publicacao
 
-O job `LinkAtletas - validacao completa` tem nome estavel e responde a todos os pushes, inclusive documentacao, para permitir sua exigencia antes da promocao de um deployment. No projeto Vercel, esse check do repositorio conectado (`luccalck/LinkAtletas`) e exigido antes da promocao em Production. A existencia de uma CI no repositorio do grupo nao gera automaticamente o mesmo resultado no fork.
+O job `LinkAtletas - validacao completa` tem nome estavel e responde a todos os pushes, inclusive documentacao, para permitir sua exigencia antes da promocao de um deployment. No projeto Vercel, esse check do repositorio conectado (`luccalck/linkatletas`) e exigido antes da promocao em Production. O repositorio e independente, nao um fork; resultados dos repositorios anteriores nao geram checks neste repositorio.
 
 Nao renomear o job sem atualizar a configuracao correspondente na Vercel. CI aprovada comprova os testes executados, nao homologacao Google, cobrancas reais ou dispositivos fisicos.
 
@@ -57,10 +57,12 @@ Ao atualizar uma Action, conferir runtime, inputs e compatibilidade dos artefato
 
 A concorrencia da CI separa push e pull request para que um evento nao cancele o check do outro. A verificacao rapida de documentacao possui timeout de dez minutos e cancela execucoes obsoletas.
 
+Na execucao manual de `ci.yml`, `webkit_regression=true` repete tres vezes os cenarios de login e fluxo principal no WebKit, alem da suite normal. Os resultados adicionais ficam em `docs/evidencias/webkit-regression` no artefato, sem substituir o resultado da suite completa. A verificacao de pageerrors continua ativa e nao ha retries para ocultar falhas intermitentes.
+
 ## Protecao e Dependabot
 
-No fork `luccalck/LinkAtletas`, main exige pull request, branch atualizada, conversas resolvidas e o check `LinkAtletas - validacao completa` emitido pelo GitHub Actions. Force push e exclusao estao bloqueados, inclusive para administradores. Nao e exigida aprovacao de outro integrante para manter o fork individual. Trabalhar em branch propria e integrar pelo PR apos a CI; enviar diretamente para main deixa de ser o fluxo normal.
+No repositorio `luccalck/linkatletas`, main exige pull request, branch atualizada, conversas resolvidas e o check `LinkAtletas - validacao completa` emitido pelo GitHub Actions. Force push e exclusao estao bloqueados, inclusive para administradores. Nao e exigida aprovacao de outro integrante para manter o repositorio individual. Trabalhar em branch propria e integrar pelo PR apos a CI.
 
-Dependabot alerts e PRs de seguranca estao habilitados no fork, sem merge automatico. Esses avisos nao corrigem dependencias sozinhos: revisar compatibilidade e CI antes de integrar um PR.
+Dependabot alerts e PRs de seguranca estao habilitados, sem merge automatico. O [arquivo de configuracao](../dependabot.yml) agenda verificacoes semanais das Actions e dos dois pacotes npm, agrupando atualizacoes minor/patch e limitando PRs. Atualizacoes maiores exigem revisao individual. A matriz nativa do Expo deve ser respeitada mesmo quando o bot sugere uma versao mais recente.
 
-As configuracoes administrativas do repositorio do grupo dependem do proprietario. A permissao write de um contribuidor permite atualizar estes workflows, mas nao ativar protecao de branch ou alertas administrativos.
+As Actions permitidas no repositorio sao as oficiais do GitHub e `pnpm/action-setup`, com SHA completo obrigatorio. O token padrao e de leitura e nao pode aprovar PRs. O fork anterior foi preservado em `luccalck/linkatletas-fork`; os registros antigos permanecem nos seus repositorios de origem. As configuracoes do repositorio do grupo continuam sob sua administracao propria.

@@ -32,7 +32,7 @@ As antigas telas agrupadas em `CoreScreens`, `InteractionScreens` e `AccountScre
 
 ## Instalação e execução
 
-Pré-requisitos: Node 24 e pnpm 10.33.2. Para a API local, iniciar os serviços da raiz, aplicar migrações e iniciar a API conforme o [manual](../docs/operacao/manual.md). Para usar a API pública, o Docker do computador não é necessário. Execute a partir deste diretório:
+Pré-requisitos: Node 24.22.2 e pnpm 10.34.9. Para a API local, iniciar os serviços da raiz, aplicar migrações e iniciar a API conforme o [manual](../docs/operacao/manual.md). Para usar a API pública, o Docker do computador não é necessário. Execute a partir deste diretório:
 
 ```powershell
 pnpm install --frozen-lockfile

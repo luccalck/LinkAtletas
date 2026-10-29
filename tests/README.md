@@ -9,7 +9,7 @@ Os arquivos não são telas nem funcionalidades acessadas pelo usuário. São ex
 - **Entender um cenário:** consultar o arquivo correspondente nas tabelas abaixo.
 - **Conferir o que passou:** abrir o [relatório de testes por cenário](../docs/evidencias/relatorio-testes.md).
 - **Encontrar resultados e capturas:** abrir o [índice das evidências](../docs/evidencias/README.md).
-- **Ver a automação:** abrir o [GitHub Actions](https://github.com/DaviSouza78/LinkAtletas/actions) e selecionar a execução e o commit desejados.
+- **Ver a automação:** abrir o [GitHub Actions](https://github.com/luccalck/linkatletas/actions) e selecionar a execução e o commit desejados. Execuções anteriores à migração continuam nos repositórios anteriores.
 - **Consultar os casos documentados:** abrir a seção 6 da [ERS final](../docs/requisitos/ERS-LinkAtletas.pdf).
 
 Um caso documentado na ERS, sua implementação automatizada e o resultado de uma execução são artefatos diferentes. Não se presume correspondência de um para um entre todos os casos da ERS e os testes desta pasta.
@@ -31,6 +31,7 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 
 | Arquivo | Responsabilidade e exemplos |
 |---|---|
+| [web-api.test.ts](unit/web-api.test.ts) | Cancelamento antes da rede, desmontagem no mesmo ciclo, pagehide, payload/sessão, mensagens de validação e cancelamento de requisição em andamento. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
 | [backup-key.test.ts](unit/backup-key.test.ts) | Leitura e validação da chave de backup, incluindo variável vazia e preservação da chave original. |
@@ -213,7 +214,7 @@ Resultados históricos não devem ser sobrescritos e apresentados como se fossem
 
 O [workflow de CI](../.github/workflows/ci.yml) prepara os serviços, compila, executa unidade/integração e navegador, verifica documentação e cliente móvel e testa backup e implantação TLS. Algumas dessas verificações são implementadas fora desta pasta.
 
-Para conferir uma execução, abrir o [Actions](https://github.com/DaviSouza78/LinkAtletas/actions), confirmar o commit, expandir a etapa desejada e consultar logs/artefatos. O [workflow documental](../.github/workflows/docs.yml) confere documentação separadamente. Os filtros dos workflows determinam quando cada automação roda; uma alteração documental pode não executar a suíte completa.
+Para conferir uma execução, abrir o [Actions](https://github.com/luccalck/linkatletas/actions), confirmar o commit, expandir a etapa desejada e consultar logs/artefatos. O [workflow documental](../.github/workflows/docs.yml) confere documentação separadamente. A CI completa responde a todos os pushes e pull requests, inclusive alterações documentais; o workflow curto de documentação usa seus próprios filtros.
 
 Uma CI aprovada de um commit anterior não comprova aprovação de alterações posteriores ou de arquivos que existem apenas no computador de um integrante.
 
