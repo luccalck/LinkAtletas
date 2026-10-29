@@ -31,7 +31,7 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 
 | Arquivo | Responsabilidade e exemplos |
 |---|---|
-| [web-api.test.ts](unit/web-api.test.ts) | Cancelamento antes da rede, desmontagem no mesmo ciclo, pagehide, payload/sessão, mensagens de validação e cancelamento de requisição em andamento. |
+| [web-api.test.ts](unit/web-api.test.ts) | Cancelamento antes da rede, durante a requisição e leitura do corpo, desmontagem no mesmo ciclo, pagehide, limpeza de listeners, payload/sessão, validação HTTP e resposta 204. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
 | [backup-key.test.ts](unit/backup-key.test.ts) | Leitura e validação da chave de backup, incluindo variável vazia e preservação da chave original. |

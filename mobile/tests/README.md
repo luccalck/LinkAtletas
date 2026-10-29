@@ -10,7 +10,7 @@
 | [hooks.test.tsx](hooks.test.tsx) | Descarte de resposta atrasada, polling somente em primeiro plano, ausência de polling em perfil e bloqueio de envio duplicado. |
 | [google-calendar.test.ts](google-calendar.test.ts) | Autorização Google e criação de evento com SDK/HTTP controlados; cancelamento, escopos, conflitos, tokens e limites. Não comprova consentimento real. |
 | [external-links.test.ts](external-links.test.ts) | Recusa de endereços externos inseguros antes de acionar a abertura nativa. |
-| [dependencies.test.ts](dependencies.test.ts) | Regressão de prototype poisoning nas entradas CJS/UMD do deepmerge usado pelo Expo e compatibilidade das schemas da CLI com Zod corrigido. |
+| [dependencies.test.ts](dependencies.test.ts) | Prototype poisoning em CJS/UMD, preservação de dados válidos em placeholders, modificações reais de configuração Expo em fixtures e compatibilidade das schemas da CLI com Zod corrigido. |
 
 Executar `pnpm test` em `mobile`, ou `pnpm --dir mobile test` na raiz. A configuração está em [vitest.config.ts](../vitest.config.ts); consultar a saída de cada execução para contagem e resultado atuais.
 

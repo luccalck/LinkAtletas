@@ -1,16 +1,57 @@
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const expoRequire = createRequire(require.resolve('expo/package.json'))
 const configRequire = createRequire(expoRequire.resolve('@expo/config/package.json'))
 const merge = configRequire('deepmerge')
+const umdMerge = configRequire('deepmerge/dist/umd.js')
+const { modifyConfigAsync } = expoRequire('@expo/config')
 const cliRoot = dirname(expoRequire.resolve('@expo/cli/package.json'))
 const { PluginSchema, DevToolsPluginOutputSchema } = require(join(cliRoot, 'build/src/start/server/DevToolsPlugin.schema.js'))
 const { createMCPDevToolsExtensionSchema } = require(join(cliRoot, 'build/src/start/server/createMCPDevToolsExtensionSchema.js'))
 
 describe('Expo dependency security', () => {
+  it.each([null, undefined, 0, '', false])('preserves valid values alongside unsafe keys for placeholder %j', (placeholder) => {
+    const source = JSON.parse('{"extra":{"valid":true,"__proto__":{"admin":true},"constructor":{"prototype":{"admin":true}},"prototype":{"admin":true}}}')
+
+    for (const mergeEntry of [merge, umdMerge]) {
+      const result = mergeEntry({ extra: placeholder }, source)
+      expect(result.extra).toEqual({ valid: true })
+      expect(result.extra.admin).toBeUndefined()
+      expect(Object.getPrototypeOf(result.extra)).toBe(Object.prototype)
+      for (const key of ['__proto__', 'constructor', 'prototype']) {
+        expect(Object.hasOwn(result.extra, key)).toBe(false)
+      }
+    }
+  })
+
+  it.each([null, 0, '', false])('preserves Expo config updates and rejects poisoning for extra=%j', async (placeholder) => {
+    const directory = await mkdtemp(join(tmpdir(), 'linkatletas-expo-config-'))
+    const configPath = join(directory, 'app.json')
+    const original = JSON.stringify({ expo: { name: 'demo', slug: 'demo', sdkVersion: '57.0.0', extra: placeholder } })
+    try {
+      await writeFile(join(directory, 'package.json'), '{"name":"demo","version":"1.0.0"}')
+      await writeFile(configPath, original)
+      const modifications = JSON.parse('{"extra":{"valid":true,"__proto__":{"admin":true}}}')
+      const result = await modifyConfigAsync(directory, modifications, {}, { dryRun: true })
+
+      expect(result.type).toBe('success')
+      expect(result.config.extra).toEqual({ valid: true })
+      expect(result.config.extra.admin).toBeUndefined()
+      expect(Object.getPrototypeOf(result.config.extra)).toBe(Object.prototype)
+      expect(await readFile(configPath, 'utf8')).toBe(original)
+    } finally {
+      if (resolve(dirname(directory)) !== resolve(tmpdir()) || !basename(directory).startsWith('linkatletas-expo-config-')) {
+        throw new Error('Diretorio temporario fora do escopo do teste')
+      }
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
   it.each([
     { session: null },
     { session: undefined },
@@ -54,7 +95,6 @@ describe('Expo dependency security', () => {
   })
 
   it('protects the published UMD entry point', () => {
-    const umdMerge = configRequire('deepmerge/dist/umd.js')
     const result = umdMerge({ session: null }, JSON.parse('{"session":{"__proto__":{"admin":true}}}'))
 
     expect(result.session.admin).toBeUndefined()
