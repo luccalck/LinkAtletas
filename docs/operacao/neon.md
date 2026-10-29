@@ -21,7 +21,7 @@ Cada deployment recebe apenas `DATABASE_URL`, como segredo no ambiente correspon
 - A transação que mantém a trava do agendador usa uma exceção local de cinco minutos, correspondente ao máximo da função Vercel. Assim, processamento de filas e serviços externos não libera a trava antecipadamente; o rollback restaura o limite normal.
 - Definir os parâmetros na role e na base correspondente. O proxy/pooler pode não preservar parâmetros enviados no startup do cliente. Verificar os valores efetivos com `current_setting`.
 - Alterações nas configurações de role afetam novas sessões; conexões já abertas podem manter valores antigos. Preparar e validar uma conta nova antes de trocar o segredo do deploy.
-- Desconexões de clientes ociosos são tratadas pelo pool sem registrar a mensagem original, que pode conter dados privados.
+- Desconexões ociosas ou de clientes em uso são tratadas sem registrar a mensagem original, que pode conter dados privados. A consulta continua rejeitando a falha; o tratamento impede o encerramento por evento sem listener e evita registrar o mesmo erro duas vezes.
 
 Exemplo de configuração por ambiente, executado por manutenção:
 
