@@ -10,6 +10,7 @@ export async function runScheduledJobs(
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
+    await client.query("SET LOCAL idle_in_transaction_session_timeout='5min'")
     const { rows } = await client.query<{ locked: boolean }>(
       'SELECT pg_try_advisory_xact_lock(128712027) AS locked',
     )

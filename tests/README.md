@@ -54,6 +54,7 @@ Esses testes podem ser executados sem iniciar o ambiente completo em Docker. Ain
 |---|---|
 | [api.test.ts](integration/api.test.ts) | Fluxo esportivo principal: autenticação, perfil, CREF manual, descoberta, solicitação e aceite do vínculo, publicação de treino, execução e persistência. Inclui entradas inválidas e acesso indevido. |
 | [database-integrity.test.ts](integration/database-integrity.test.ts) | Participantes de avaliações vinculados ao contrato, bloqueio de comissão inválida e índices de apoio às FKs. Usa transações revertidas em banco exclusivo de teste. |
+| [scheduled-lock.test.ts](integration/scheduled-lock.test.ts) | Trava real do PostgreSQL preservada durante espera externa maior que o limite ocioso geral; outra conexão só adquire a trava depois da finalização. |
 | [platform.test.ts](integration/platform.test.ts) | Consentimentos, dados privados, arquivos cifrados, autorização de mídia, recuperação de senha, sessão nativa e encerramento de conta. Usa banco, armazenamento e captura de e-mail locais. |
 | [interactions.test.ts](integration/interactions.test.ts) | Mensagens, leitura, eventos, avaliações e consultorias: persistência, isolamento entre usuários e conflito de horários. |
 | [billing.test.ts](integration/billing.test.ts) | Adaptador financeiro com servidor HTTP controlado: checkout, eventos, repetição, falhas, cancelamento e conciliação. Não realiza pagamento real. |

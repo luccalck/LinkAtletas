@@ -164,6 +164,10 @@ test('chat ao vivo → agenda → avaliação → consentimento e mídia → fin
     await expect(
       athlete.getByText(`Orientação recebida ${unique}`, { exact: true }),
     ).toBeVisible()
+    await expect(
+      coach.locator('article').filter({ hasText: `Orientação recebida ${unique}` }).getByText(/Lida/),
+    ).toBeVisible()
+    await athlete.waitForLoadState('networkidle')
     await athlete.reload()
     await expect(
       athlete.getByText(`Mensagem ao vivo ${unique}`, { exact: true }),

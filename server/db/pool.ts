@@ -10,9 +10,14 @@ export function createPool(url = databaseUrl) {
     lock_timeout: 5000,
     idle_in_transaction_session_timeout: 60000,
   })
-  pool.on('error', () => {
-    console.error('Conexao PostgreSQL ociosa interrompida; o pool descartou a conexao.')
-  })
+  const reported = new WeakSet<Error>()
+  const report = (error: Error) => {
+    if (reported.has(error)) return
+    reported.add(error)
+    console.error('Conexao PostgreSQL interrompida.')
+  }
+  pool.on('error', report)
+  pool.on('connect', (client) => client.on('error', report))
   return pool
 }
 export async function transaction<T>(
