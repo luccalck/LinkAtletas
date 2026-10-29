@@ -37,6 +37,7 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 | [database-pool.test.ts](unit/database-pool.test.ts) | Prazos de consultas/transações e tratamento de desconexão ociosa sem expor dados privados nos logs. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
+| [neon-backup.test.ts](unit/neon-backup.test.ts) | Cifra autenticada do backup remoto, adulteracao, chave invalida, retencao restrita e bloqueio de restauracao em producao. O teste real de restauracao ocorre no workflow de backup. |
 | [backup-key.test.ts](unit/backup-key.test.ts) | Leitura e validação da chave de backup, incluindo variável vazia e preservação da chave original. |
 | [static-security.test.ts](unit/static-security.test.ts) | Acesso normal a arquivo público e bloqueio de tentativas de sair da pasta pública. Usa arquivos temporários. |
 | [scheduled.test.ts](unit/scheduled.test.ts) | Autorização da rota de tarefas, exclusão mútua, execução e liberação da trava em caso de falha, com dependências controladas. |
