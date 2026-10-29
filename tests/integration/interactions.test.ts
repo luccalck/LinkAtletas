@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { Socket } from 'node:net'
 import type { FastifyInstance, InjectOptions } from 'fastify'
 import type { Pool } from 'pg'
 import type { AppUser } from '../../shared/contracts.js'
@@ -11,6 +12,9 @@ import { createPool } from '../../server/db/pool.js'
 import { migrate } from '../../server/db/migrate.js'
 
 const origin = 'http://localhost:5173'
+function websocketSocket() {
+  return Object.defineProperty(new Socket(), 'remoteAddress', { value: '127.0.0.1' })
+}
 const testUrl =
   process.env.TEST_DATABASE_URL ??
   'postgresql://linkatletas:linkatletas_dev@127.0.0.1:54329/linkatletas_test'
@@ -220,7 +224,7 @@ describe.sequential('Comunicação, avaliações e agenda persistidas', () => {
       strangerEvents: InteractionEvent[] = []
     const coachSocket = await app.injectWS(
       '/api/events',
-      { headers: { cookie: coach.cookie, origin } },
+      { socket: websocketSocket(), headers: { cookie: coach.cookie, origin } },
       {
         onInit: (ws) =>
           ws.on('message', (raw) =>
@@ -230,7 +234,7 @@ describe.sequential('Comunicação, avaliações e agenda persistidas', () => {
     )
     const athleteSocket = await app.injectWS(
       '/api/events',
-      { headers: { cookie: athlete.cookie, origin } },
+      { socket: websocketSocket(), headers: { cookie: athlete.cookie, origin } },
       {
         onInit: (ws) =>
           ws.on('message', (raw) =>
@@ -240,7 +244,7 @@ describe.sequential('Comunicação, avaliações e agenda persistidas', () => {
     )
     const strangerSocket = await app.injectWS(
       '/api/events',
-      { headers: { cookie: stranger.cookie, origin } },
+      { socket: websocketSocket(), headers: { cookie: stranger.cookie, origin } },
       {
         onInit: (ws) =>
           ws.on('message', (raw) =>
@@ -299,13 +303,14 @@ describe.sequential('Comunicação, avaliações e agenda persistidas', () => {
   })
   it('recusa upgrade WebSocket anônimo e com origem indevida', async () => {
     await expect(
-      app.injectWS('/api/events', { headers: { origin } }),
-    ).rejects.toThrow()
+      app.injectWS('/api/events', { socket: websocketSocket(), headers: { origin } }),
+    ).rejects.toThrow('401')
     await expect(
       app.injectWS('/api/events', {
+        socket: websocketSocket(),
         headers: { origin: 'https://invasor.example', cookie: athlete.cookie },
       }),
-    ).rejects.toThrow()
+    ).rejects.toThrow('403')
   })
   it('notificações pertencem ao destinatário e não são marcadas por terceiros', async () => {
     const response = await request(coach, 'GET', '/notifications')

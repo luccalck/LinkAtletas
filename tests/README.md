@@ -33,6 +33,7 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 |---|---|
 | [web-api.test.ts](unit/web-api.test.ts) | Cancelamento antes da rede, durante a requisição e leitura do corpo, desmontagem no mesmo ciclo, pagehide, limpeza de listeners, payload/sessão, validação HTTP e resposta 204. |
 | [react-runtime.test.ts](unit/react-runtime.test.ts) | Renderização real com as versões instaladas de React e React DOM, para detectar incompatibilidades entre os pacotes antes dos testes de navegador. |
+| [rate-limit.test.ts](unit/rate-limit.test.ts) | Bloqueio HTTP 429 após excesso de tentativas, isolamento entre IPs e agrupamento da mesma sub-rede IPv6, sem acesso ao banco. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
 | [backup-key.test.ts](unit/backup-key.test.ts) | Leitura e validação da chave de backup, incluindo variável vazia e preservação da chave original. |
