@@ -80,6 +80,17 @@ export function required(name: string) {
   return value
 }
 
+export function postgresFailure(stderr: string) {
+  const cases: [RegExp, string][] = [
+    [/schema "public" already exists/i, 'PUBLIC_SCHEMA_EXISTS'],
+    [/function [^\r\n]+ does not exist/i, 'FUNCTION_MISSING'],
+    [/permission denied/i, 'PERMISSION_DENIED'],
+    [/authentication failed/i, 'AUTHENTICATION_FAILED'],
+    [/connection [^\r\n]+ failed|could not connect/i, 'CONNECTION_FAILED'],
+  ]
+  return 'Comando PostgreSQL falhou [' + (cases.find(([pattern]) => pattern.test(stderr))?.[1] || 'COMMAND_FAILED') + '].'
+}
+
 export function backupStorage() {
   const endpoint = new URL(required('NEON_BACKUP_S3_ENDPOINT'))
   if (endpoint.protocol !== 'https:' || !endpoint.hostname.endsWith('.tigris.dev')) throw new Error('Endpoint Tigris invalido.')
@@ -105,7 +116,8 @@ export async function postgresCommand(tool: 'pg_dump' | 'pg_restore', url: URL, 
     ...Object.keys(variables).flatMap(name => ['--env', name]),
     'postgres:18-alpine', tool, ...args,
   ], { env: { ...process.env, ...variables }, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-  child.stderr.resume()
+  let stderr = ''
+  child.stderr.on('data', (chunk: Buffer) => { if (stderr.length < 16384) stderr += chunk.toString('utf8').slice(0, 16384 - stderr.length) })
   child.stdin.on('error', () => {})
   const output: Buffer[] = []
   let size = 0
@@ -116,7 +128,7 @@ export async function postgresCommand(tool: 'pg_dump' | 'pg_restore', url: URL, 
       output.push(chunk)
     })
     child.once('error', () => reject(new Error('Cliente PostgreSQL indisponivel.')))
-    child.once('close', code => code === 0 ? resolve(Buffer.concat(output)) : reject(new Error('Comando PostgreSQL falhou.')))
+    child.once('close', code => code === 0 ? resolve(Buffer.concat(output)) : reject(new Error(postgresFailure(stderr))))
   })
   const timeout = setTimeout(() => child.kill(), 180000)
   try {

@@ -39,5 +39,9 @@ export async function verifyNeonBackup(objectKey: string) {
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  verifyNeonBackup(process.argv[2] || '').catch(() => { console.error('Verificacao de restauracao Neon falhou.'); process.exitCode = 1 })
+  verifyNeonBackup(process.argv[2] || '').catch(error => {
+    console.error('Verificacao de restauracao Neon falhou.')
+    if (error instanceof Error && /^Comando PostgreSQL falhou \[[A-Z_]+\]\.$/.test(error.message)) console.error(error.message)
+    process.exitCode = 1
+  })
 }

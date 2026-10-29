@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { backupKey, decodeBackup, encodeBackup, expiredBackups, restoreDatabase, sourceDatabase } from '../../scripts/banco/neon-backup-shared.js'
+import { backupKey, decodeBackup, encodeBackup, expiredBackups, postgresFailure, restoreDatabase, sourceDatabase } from '../../scripts/banco/neon-backup-shared.js'
 
 const archive = {
   version: 1 as const,
@@ -12,6 +12,11 @@ const archive = {
 }
 
 describe('backup cifrado do Neon', () => {
+  it('classifica erros sem publicar stderr ou dados privados', () => {
+    expect(postgresFailure('ERROR: schema "public" already exists')).toContain('[PUBLIC_SCHEMA_EXISTS]')
+    expect(postgresFailure('ERROR: function public.gen_random_uuid() does not exist')).toContain('[FUNCTION_MISSING]')
+    expect(postgresFailure('DETAIL: chave e dado privado')).toBe('Comando PostgreSQL falhou [COMMAND_FAILED].')
+  })
   it('cifra e autentica o dump e seu manifesto com nonce exclusivo', () => {
     const key = randomBytes(32)
     const first = encodeBackup(archive, key)
