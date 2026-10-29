@@ -214,7 +214,7 @@ Resultados históricos não devem ser sobrescritos e apresentados como se fossem
 
 O [workflow de CI](../.github/workflows/ci.yml) prepara os serviços, compila, executa unidade/integração e navegador, verifica documentação e cliente móvel e testa backup e implantação TLS. Algumas dessas verificações são implementadas fora desta pasta.
 
-Para conferir uma execução, abrir o [Actions](https://github.com/DaviSouza78/LinkAtletas/actions), confirmar o commit, expandir a etapa desejada e consultar logs/artefatos. O [workflow documental](../.github/workflows/docs.yml) confere documentação separadamente. Os filtros dos workflows determinam quando cada automação roda; uma alteração documental pode não executar a suíte completa.
+Para conferir uma execução, abrir o [Actions](https://github.com/luccalck/linkatletas/actions), confirmar o commit, expandir a etapa desejada e consultar logs/artefatos. O [workflow documental](../.github/workflows/docs.yml) confere documentação separadamente. A CI completa responde a todos os pushes e pull requests, inclusive alterações documentais; o workflow curto de documentação usa seus próprios filtros.
 
 Uma CI aprovada de um commit anterior não comprova aprovação de alterações posteriores ou de arquivos que existem apenas no computador de um integrante.
 
