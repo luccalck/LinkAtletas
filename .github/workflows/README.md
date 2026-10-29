@@ -4,6 +4,7 @@
 |---|---|---|
 | [ci.yml](ci.yml) | Todos os pushes, pull request ou execucao manual | Tipos/build, unidade/API, navegador, backup, esquema/diagramas, verificacoes moveis e HTTPS local. |
 | [docs.yml](docs.yml) | Push de documentacao/README ou execucao manual | Links locais e contratos documentados, sem iniciar servicos. |
+| [neon-backup.yml](neon-backup.yml) | Diario, 06:30 UTC (03:30 em Sao Paulo), ou manual | Snapshot Neon somente leitura, cifra AES-256-GCM, copia Tigris privada e restauracao automatica em PostgreSQL 18 temporario. |
 | [android.yml](android.yml) | Manual ou chamada por outro workflow | Compilacao, inicializacao e ensaio integrado do APK. |
 
 ## Android
@@ -66,3 +67,7 @@ No repositorio `luccalck/linkatletas`, main exige pull request, branch atualizad
 Dependabot alerts e PRs de seguranca estao habilitados, sem merge automatico. O [arquivo de configuracao](../dependabot.yml) agenda verificacoes semanais das Actions e dos dois pacotes npm, agrupando atualizacoes minor/patch e limitando PRs. Atualizacoes maiores exigem revisao individual. A matriz nativa do Expo deve ser respeitada mesmo quando o bot sugere uma versao mais recente.
 
 As Actions permitidas no repositorio sao as oficiais do GitHub e `pnpm/action-setup`, com SHA completo obrigatorio. O token padrao e de leitura e nao pode aprovar PRs. Secret scanning e push protection estao habilitados. Os registros antigos permanecem nos seus repositorios de origem; a governanca descrita aqui se refere somente a `luccalck/linkatletas`.
+
+## Backup de producao
+
+O workflow de backup nao roda em PRs e utiliza credenciais exclusivas de leitura do Neon e de um unico bucket Tigris. Nao envia dumps ou dados pessoais para artifacts/logs. Consulta o [procedimento](../../docs/operacao/neon.md#backup-independente-no-tigris) para secrets, recuperacao e limites. O agendamento do GitHub pode atrasar; conferir a ultima execucao e habilitar notificacoes de falha.

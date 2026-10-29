@@ -1,0 +1,56 @@
+name: Backup cifrado do Neon
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: neon-production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    name: Copia cifrada e restauracao isolada
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      restore:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: linkatletas_backup_restore_test
+          POSTGRES_USER: restore_test
+          POSTGRES_PASSWORD: restore_only_local_ci
+        ports:
+          - 127.0.0.1:54338:5432
+        options: >-
+          --health-cmd "pg_isready -U restore_test -d linkatletas_backup_restore_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEON_BACKUP_DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
+      NEON_BACKUP_ENCRYPTION_KEY: ${{ secrets.NEON_BACKUP_ENCRYPTION_KEY }}
+      NEON_BACKUP_DATA_KEY_FINGERPRINT: ${{ vars.NEON_BACKUP_DATA_KEY_FINGERPRINT }}
+      NEON_BACKUP_S3_ENDPOINT: ${{ vars.NEON_BACKUP_S3_ENDPOINT }}
+      NEON_BACKUP_BUCKET: ${{ vars.NEON_BACKUP_BUCKET }}
+      NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_ACCESS_KEY }}
+      NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_SECRET_KEY }}
+      NEON_BACKUP_RESTORE_URL: postgresql://restore_test:restore_only_local_ci@127.0.0.1:54338/linkatletas_backup_restore_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24.22.2
+          cache: pnpm
+      - name: Instalar dependencias travadas
+        run: pnpm install --frozen-lockfile
+      - name: Cifrar snapshot e conferir copia privada
+        id: create
+        run: node --import tsx scripts/banco/neon-backup.ts
+      - name: Restaurar e conferir em PostgreSQL temporario
+        env:
+          BACKUP_KEY: ${{ steps.create.outputs.backup_key }}
+        run: node --import tsx scripts/banco/neon-restore-test.ts "$BACKUP_KEY"

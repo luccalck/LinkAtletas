@@ -8,7 +8,7 @@ Executar a partir da **raiz do repositório**, com as dependências instaladas. 
 
 | Pasta | Finalidade | Comandos principais |
 |---|---|---|
-| [banco](banco/README.md) | Quatro arquivos: backup, restauração, helpers e metadados | Comandos e destinos no guia da pasta. |
+| [banco](banco/README.md) | Backup/restauração Docker e Neon, helpers e metadados | Comandos e destinos no guia da pasta. |
 | [operacao](operacao/README.md) | Dois arquivos: configuração e entrada do contêiner | `pnpm production:init`; Docker usa o script de entrada. |
 | [verificacao](verificacao/README.md) | Cinco arquivos: smoke, carga, backup e TLS | `pnpm test:smoke`, `pnpm test:load`, `pnpm test:backup`, `pnpm test:tls` |
 | [documentacao](documentacao/README.md) | Quatro arquivos: links, OpenAPI e diagramas | `pnpm docs:check`, `pnpm api:export` |
@@ -31,7 +31,7 @@ Os [testes automatizados](../tests/README.md) continuam em `tests`; esta pasta c
 
 ## Ambientes e saídas
 
-- O PostgreSQL do Docker e o Neon são independentes. O backup desta pasta usa `docker exec`; definir `DATABASE_URL` não o transforma em backup remoto do Neon.
+- O PostgreSQL do Docker e o Neon são independentes. Os comandos originais `backup.ts`/`restore.ts` usam `docker exec`; definir `DATABASE_URL` não os transforma em backup remoto. Os comandos `neon-*` e seu workflow atendem ao Neon, conforme o [guia](../docs/operacao/neon.md#backup-independente-no-tigris).
 - Backup de banco/S3 exige suspender escritas para obter um conjunto consistente. Preservar a chave AES separadamente. Não publicar dumps, manifestos privados, `.env` ou tokens.
 - Resultados ficam em `docs/evidencias`, `tmp/` ou `emulator-evidence/`, conforme o script. Os ensaios de backup preservam recursos para inspeção; selecionar somente os recursos daquele ensaio na limpeza.
 - Carga, TLS, backup privado e Android têm efeitos sobre dados ou disponibilidade; usar instalações de teste, conforme os guias.
