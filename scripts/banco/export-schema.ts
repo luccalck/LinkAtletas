@@ -21,7 +21,7 @@ try {
       FROM pg_constraint c JOIN pg_class r ON r.oid=c.conrelid
       JOIN pg_namespace n ON n.oid=r.relnamespace
       LEFT JOIN pg_class f ON f.oid=c.confrelid
-      WHERE n.nspname='public' ORDER BY r.relname,c.conname`)).rows
+      WHERE n.nspname='public' AND c.contype IN ('p','u','f','c','x') ORDER BY r.relname,c.conname`)).rows
   const tables = [...new Set(columns.map((c) => c.table_name))]
   const indexes = (await pool.query<{ tablename: string; indexname: string; indexdef: string }>(
     `SELECT tablename,indexname,indexdef FROM pg_indexes WHERE schemaname='public' ORDER BY tablename,indexname`,

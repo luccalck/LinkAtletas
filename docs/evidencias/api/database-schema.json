@@ -2419,6 +2419,16 @@
     },
     {
       "table_name": "billing_subscriptions",
+      "name": "billing_subscriptions_commission_bounds",
+      "type": "c",
+      "definition": "CHECK (((commission_bps >= 0) AND (commission_bps <= 5000)))",
+      "columns": [
+        "commission_bps"
+      ],
+      "foreign_table": null
+    },
+    {
+      "table_name": "billing_subscriptions",
       "name": "billing_subscriptions_contract_id_fkey",
       "type": "f",
       "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE",
@@ -2678,6 +2688,18 @@
         "coach_id"
       ],
       "foreign_table": "users"
+    },
+    {
+      "table_name": "contracts",
+      "name": "contracts_members_unique",
+      "type": "u",
+      "definition": "UNIQUE (id, athlete_id, coach_id)",
+      "columns": [
+        "id",
+        "athlete_id",
+        "coach_id"
+      ],
+      "foreign_table": null
     },
     {
       "table_name": "contracts",
@@ -3275,16 +3297,6 @@
     },
     {
       "table_name": "reviews",
-      "name": "reviews_contract_id_fkey",
-      "type": "f",
-      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE",
-      "columns": [
-        "contract_id"
-      ],
-      "foreign_table": "contracts"
-    },
-    {
-      "table_name": "reviews",
       "name": "reviews_contract_id_key",
       "type": "u",
       "definition": "UNIQUE (contract_id)",
@@ -3292,6 +3304,18 @@
         "contract_id"
       ],
       "foreign_table": null
+    },
+    {
+      "table_name": "reviews",
+      "name": "reviews_contract_members_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (contract_id, athlete_id, coach_id) REFERENCES contracts(id, athlete_id, coach_id) ON DELETE CASCADE",
+      "columns": [
+        "contract_id",
+        "athlete_id",
+        "coach_id"
+      ],
+      "foreign_table": "contracts"
     },
     {
       "table_name": "reviews",
@@ -3531,9 +3555,29 @@
       "indexdef": "CREATE UNIQUE INDEX administrative_audit_pkey ON public.administrative_audit USING btree (id)"
     },
     {
+      "tablename": "administrative_audit",
+      "indexname": "idx_administrative_audit_actor_id_fkey",
+      "indexdef": "CREATE INDEX idx_administrative_audit_actor_id_fkey ON public.administrative_audit USING btree (actor_id)"
+    },
+    {
+      "tablename": "administrative_audit",
+      "indexname": "idx_administrative_audit_subject_id_fkey",
+      "indexdef": "CREATE INDEX idx_administrative_audit_subject_id_fkey ON public.administrative_audit USING btree (subject_id)"
+    },
+    {
       "tablename": "billing_audit",
       "indexname": "billing_audit_pkey",
       "indexdef": "CREATE UNIQUE INDEX billing_audit_pkey ON public.billing_audit USING btree (id)"
+    },
+    {
+      "tablename": "billing_audit",
+      "indexname": "idx_billing_audit_actor_id_fkey",
+      "indexdef": "CREATE INDEX idx_billing_audit_actor_id_fkey ON public.billing_audit USING btree (actor_id)"
+    },
+    {
+      "tablename": "billing_audit",
+      "indexname": "idx_billing_audit_contract_id_fkey",
+      "indexdef": "CREATE INDEX idx_billing_audit_contract_id_fkey ON public.billing_audit USING btree (contract_id)"
     },
     {
       "tablename": "billing_events",
@@ -3546,6 +3590,11 @@
       "indexdef": "CREATE UNIQUE INDEX billing_jobs_pkey ON public.billing_jobs USING btree (id)"
     },
     {
+      "tablename": "billing_jobs",
+      "indexname": "idx_billing_jobs_subscription_id_fkey",
+      "indexdef": "CREATE INDEX idx_billing_jobs_subscription_id_fkey ON public.billing_jobs USING btree (subscription_id)"
+    },
+    {
       "tablename": "billing_payments",
       "indexname": "billing_payments_pkey",
       "indexdef": "CREATE UNIQUE INDEX billing_payments_pkey ON public.billing_payments USING btree (id)"
@@ -3554,6 +3603,11 @@
       "tablename": "billing_payments",
       "indexname": "billing_payments_provider_payment_id_key",
       "indexdef": "CREATE UNIQUE INDEX billing_payments_provider_payment_id_key ON public.billing_payments USING btree (provider_payment_id)"
+    },
+    {
+      "tablename": "billing_payments",
+      "indexname": "idx_billing_payments_subscription_id_fkey",
+      "indexdef": "CREATE INDEX idx_billing_payments_subscription_id_fkey ON public.billing_payments USING btree (subscription_id)"
     },
     {
       "tablename": "billing_plans",
@@ -3569,6 +3623,11 @@
       "tablename": "billing_splits",
       "indexname": "billing_splits_pkey",
       "indexdef": "CREATE UNIQUE INDEX billing_splits_pkey ON public.billing_splits USING btree (provider_split_id)"
+    },
+    {
+      "tablename": "billing_splits",
+      "indexname": "idx_billing_splits_payment_id_fkey",
+      "indexdef": "CREATE INDEX idx_billing_splits_payment_id_fkey ON public.billing_splits USING btree (payment_id)"
     },
     {
       "tablename": "billing_subscriptions",
@@ -3606,6 +3665,11 @@
       "indexdef": "CREATE UNIQUE INDEX consent_history_pkey ON public.consent_history USING btree (id)"
     },
     {
+      "tablename": "consent_history",
+      "indexname": "idx_consent_history_user_id_fkey",
+      "indexdef": "CREATE INDEX idx_consent_history_user_id_fkey ON public.consent_history USING btree (user_id)"
+    },
+    {
       "tablename": "consents",
       "indexname": "consents_pkey",
       "indexdef": "CREATE UNIQUE INDEX consents_pkey ON public.consents USING btree (user_id, purpose)"
@@ -3614,6 +3678,16 @@
       "tablename": "consultation_history",
       "indexname": "consultation_history_pkey",
       "indexdef": "CREATE UNIQUE INDEX consultation_history_pkey ON public.consultation_history USING btree (id)"
+    },
+    {
+      "tablename": "consultation_history",
+      "indexname": "idx_consultation_history_actor_id_fkey",
+      "indexdef": "CREATE INDEX idx_consultation_history_actor_id_fkey ON public.consultation_history USING btree (actor_id)"
+    },
+    {
+      "tablename": "consultation_history",
+      "indexname": "idx_consultation_history_consultation_id_fkey",
+      "indexdef": "CREATE INDEX idx_consultation_history_consultation_id_fkey ON public.consultation_history USING btree (consultation_id)"
     },
     {
       "tablename": "consultations",
@@ -3626,14 +3700,29 @@
       "indexdef": "CREATE UNIQUE INDEX consultations_pkey ON public.consultations USING btree (id)"
     },
     {
+      "tablename": "consultations",
+      "indexname": "idx_consultations_contract_id_fkey",
+      "indexdef": "CREATE INDEX idx_consultations_contract_id_fkey ON public.consultations USING btree (contract_id)"
+    },
+    {
       "tablename": "contracts",
       "indexname": "contracts_coach",
       "indexdef": "CREATE INDEX contracts_coach ON public.contracts USING btree (coach_id, status)"
     },
     {
       "tablename": "contracts",
+      "indexname": "contracts_members_unique",
+      "indexdef": "CREATE UNIQUE INDEX contracts_members_unique ON public.contracts USING btree (id, athlete_id, coach_id)"
+    },
+    {
+      "tablename": "contracts",
       "indexname": "contracts_pkey",
       "indexdef": "CREATE UNIQUE INDEX contracts_pkey ON public.contracts USING btree (id)"
+    },
+    {
+      "tablename": "contracts",
+      "indexname": "idx_contracts_athlete_id_fkey",
+      "indexdef": "CREATE INDEX idx_contracts_athlete_id_fkey ON public.contracts USING btree (athlete_id)"
     },
     {
       "tablename": "contracts",
@@ -3662,8 +3751,18 @@
     },
     {
       "tablename": "mail_outbox",
+      "indexname": "idx_mail_outbox_user_id_fkey",
+      "indexdef": "CREATE INDEX idx_mail_outbox_user_id_fkey ON public.mail_outbox USING btree (user_id)"
+    },
+    {
+      "tablename": "mail_outbox",
       "indexname": "mail_outbox_pkey",
       "indexdef": "CREATE UNIQUE INDEX mail_outbox_pkey ON public.mail_outbox USING btree (id)"
+    },
+    {
+      "tablename": "media",
+      "indexname": "idx_media_owner_id_fkey",
+      "indexdef": "CREATE INDEX idx_media_owner_id_fkey ON public.media USING btree (owner_id)"
     },
     {
       "tablename": "media",
@@ -3682,8 +3781,23 @@
     },
     {
       "tablename": "media_feedback",
+      "indexname": "idx_media_feedback_author_id_fkey",
+      "indexdef": "CREATE INDEX idx_media_feedback_author_id_fkey ON public.media_feedback USING btree (author_id)"
+    },
+    {
+      "tablename": "media_feedback",
+      "indexname": "idx_media_feedback_media_id_fkey",
+      "indexdef": "CREATE INDEX idx_media_feedback_media_id_fkey ON public.media_feedback USING btree (media_id)"
+    },
+    {
+      "tablename": "media_feedback",
       "indexname": "media_feedback_pkey",
       "indexdef": "CREATE UNIQUE INDEX media_feedback_pkey ON public.media_feedback USING btree (id)"
+    },
+    {
+      "tablename": "media_uploads",
+      "indexname": "idx_media_uploads_media_id_fkey",
+      "indexdef": "CREATE INDEX idx_media_uploads_media_id_fkey ON public.media_uploads USING btree (media_id)"
     },
     {
       "tablename": "media_uploads",
@@ -3699,6 +3813,16 @@
       "tablename": "media_uploads",
       "indexname": "media_uploads_pkey",
       "indexdef": "CREATE UNIQUE INDEX media_uploads_pkey ON public.media_uploads USING btree (id)"
+    },
+    {
+      "tablename": "messages",
+      "indexname": "idx_messages_media_id_fkey",
+      "indexdef": "CREATE INDEX idx_messages_media_id_fkey ON public.messages USING btree (media_id)"
+    },
+    {
+      "tablename": "messages",
+      "indexname": "idx_messages_sender_id_fkey",
+      "indexdef": "CREATE INDEX idx_messages_sender_id_fkey ON public.messages USING btree (sender_id)"
     },
     {
       "tablename": "messages",
@@ -3727,8 +3851,18 @@
     },
     {
       "tablename": "password_resets",
+      "indexname": "idx_password_resets_user_id_fkey",
+      "indexdef": "CREATE INDEX idx_password_resets_user_id_fkey ON public.password_resets USING btree (user_id)"
+    },
+    {
+      "tablename": "password_resets",
       "indexname": "password_resets_pkey",
       "indexdef": "CREATE UNIQUE INDEX password_resets_pkey ON public.password_resets USING btree (token_hash)"
+    },
+    {
+      "tablename": "privacy_requests",
+      "indexname": "idx_privacy_requests_user_id_fkey",
+      "indexdef": "CREATE INDEX idx_privacy_requests_user_id_fkey ON public.privacy_requests USING btree (user_id)"
     },
     {
       "tablename": "privacy_requests",
@@ -3747,8 +3881,23 @@
     },
     {
       "tablename": "review_moderation",
+      "indexname": "idx_review_moderation_review_id_fkey",
+      "indexdef": "CREATE INDEX idx_review_moderation_review_id_fkey ON public.review_moderation USING btree (review_id)"
+    },
+    {
+      "tablename": "review_moderation",
+      "indexname": "idx_review_moderation_reviewer_id_fkey",
+      "indexdef": "CREATE INDEX idx_review_moderation_reviewer_id_fkey ON public.review_moderation USING btree (reviewer_id)"
+    },
+    {
+      "tablename": "review_moderation",
       "indexname": "review_moderation_pkey",
       "indexdef": "CREATE UNIQUE INDEX review_moderation_pkey ON public.review_moderation USING btree (id)"
+    },
+    {
+      "tablename": "review_reports",
+      "indexname": "idx_review_reports_reporter_id_fkey",
+      "indexdef": "CREATE INDEX idx_review_reports_reporter_id_fkey ON public.review_reports USING btree (reporter_id)"
     },
     {
       "tablename": "review_reports",
@@ -3759,6 +3908,11 @@
       "tablename": "review_reports",
       "indexname": "review_reports_review_id_reporter_id_key",
       "indexdef": "CREATE UNIQUE INDEX review_reports_review_id_reporter_id_key ON public.review_reports USING btree (review_id, reporter_id)"
+    },
+    {
+      "tablename": "reviews",
+      "indexname": "idx_reviews_athlete_id_fkey",
+      "indexdef": "CREATE INDEX idx_reviews_athlete_id_fkey ON public.reviews USING btree (athlete_id)"
     },
     {
       "tablename": "reviews",
@@ -3782,6 +3936,11 @@
     },
     {
       "tablename": "sessions",
+      "indexname": "idx_sessions_user_id_fkey",
+      "indexdef": "CREATE INDEX idx_sessions_user_id_fkey ON public.sessions USING btree (user_id)"
+    },
+    {
+      "tablename": "sessions",
       "indexname": "sessions_expiry",
       "indexdef": "CREATE INDEX sessions_expiry ON public.sessions USING btree (expires_at)"
     },
@@ -3802,8 +3961,33 @@
     },
     {
       "tablename": "verification_audit",
+      "indexname": "idx_verification_audit_reviewer_id_fkey",
+      "indexdef": "CREATE INDEX idx_verification_audit_reviewer_id_fkey ON public.verification_audit USING btree (reviewer_id)"
+    },
+    {
+      "tablename": "verification_audit",
+      "indexname": "idx_verification_audit_verification_id_fkey",
+      "indexdef": "CREATE INDEX idx_verification_audit_verification_id_fkey ON public.verification_audit USING btree (verification_id)"
+    },
+    {
+      "tablename": "verification_audit",
       "indexname": "verification_audit_pkey",
       "indexdef": "CREATE UNIQUE INDEX verification_audit_pkey ON public.verification_audit USING btree (id)"
+    },
+    {
+      "tablename": "verifications",
+      "indexname": "idx_verification_document",
+      "indexdef": "CREATE INDEX idx_verification_document ON public.verifications USING btree (document_id)"
+    },
+    {
+      "tablename": "verifications",
+      "indexname": "idx_verifications_coach_id_fkey",
+      "indexdef": "CREATE INDEX idx_verifications_coach_id_fkey ON public.verifications USING btree (coach_id)"
+    },
+    {
+      "tablename": "verifications",
+      "indexname": "idx_verifications_reviewer_id_fkey",
+      "indexdef": "CREATE INDEX idx_verifications_reviewer_id_fkey ON public.verifications USING btree (reviewer_id)"
     },
     {
       "tablename": "verifications",

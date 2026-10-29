@@ -34,6 +34,7 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 | [web-api.test.ts](unit/web-api.test.ts) | Cancelamento antes da rede, durante a requisição e leitura do corpo, desmontagem no mesmo ciclo, pagehide, limpeza de listeners, payload/sessão, validação HTTP e resposta 204. |
 | [react-runtime.test.ts](unit/react-runtime.test.ts) | Renderização real com as versões instaladas de React e React DOM, para detectar incompatibilidades entre os pacotes antes dos testes de navegador. |
 | [rate-limit.test.ts](unit/rate-limit.test.ts) | Bloqueio HTTP 429 após excesso de tentativas, isolamento entre IPs e agrupamento da mesma sub-rede IPv6, sem acesso ao banco. |
+| [database-pool.test.ts](unit/database-pool.test.ts) | Prazos de consultas/transações e tratamento de desconexão ociosa sem expor dados privados nos logs. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
 | [backup-key.test.ts](unit/backup-key.test.ts) | Leitura e validação da chave de backup, incluindo variável vazia e preservação da chave original. |
@@ -52,6 +53,7 @@ Esses testes podem ser executados sem iniciar o ambiente completo em Docker. Ain
 | Arquivo | Responsabilidade e exemplos |
 |---|---|
 | [api.test.ts](integration/api.test.ts) | Fluxo esportivo principal: autenticação, perfil, CREF manual, descoberta, solicitação e aceite do vínculo, publicação de treino, execução e persistência. Inclui entradas inválidas e acesso indevido. |
+| [database-integrity.test.ts](integration/database-integrity.test.ts) | Participantes de avaliações vinculados ao contrato, bloqueio de comissão inválida e índices de apoio às FKs. Usa transações revertidas em banco exclusivo de teste. |
 | [platform.test.ts](integration/platform.test.ts) | Consentimentos, dados privados, arquivos cifrados, autorização de mídia, recuperação de senha, sessão nativa e encerramento de conta. Usa banco, armazenamento e captura de e-mail locais. |
 | [interactions.test.ts](integration/interactions.test.ts) | Mensagens, leitura, eventos, avaliações e consultorias: persistência, isolamento entre usuários e conflito de horários. |
 | [billing.test.ts](integration/billing.test.ts) | Adaptador financeiro com servidor HTTP controlado: checkout, eventos, repetição, falhas, cancelamento e conciliação. Não realiza pagamento real. |

@@ -1,7 +1,20 @@
 import pg from 'pg'
 import { databaseUrl } from '../config.js'
-export const createPool = (url = databaseUrl) =>
-  new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 5000 })
+export function createPool(url = databaseUrl) {
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: 10,
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 30000,
+    query_timeout: 35000,
+    lock_timeout: 5000,
+    idle_in_transaction_session_timeout: 60000,
+  })
+  pool.on('error', () => {
+    console.error('Conexao PostgreSQL ociosa interrompida; o pool descartou a conexao.')
+  })
+  return pool
+}
 export async function transaction<T>(
   pool: pg.Pool,
   work: (client: pg.PoolClient) => Promise<T>,

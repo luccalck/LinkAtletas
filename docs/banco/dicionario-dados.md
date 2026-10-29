@@ -24,6 +24,8 @@ Restrições:
 Índices:
 
 - `administrative_audit_pkey`: `CREATE UNIQUE INDEX administrative_audit_pkey ON public.administrative_audit USING btree (id)`.
+- `idx_administrative_audit_actor_id_fkey`: `CREATE INDEX idx_administrative_audit_actor_id_fkey ON public.administrative_audit USING btree (actor_id)`.
+- `idx_administrative_audit_subject_id_fkey`: `CREATE INDEX idx_administrative_audit_subject_id_fkey ON public.administrative_audit USING btree (subject_id)`.
 
 ## billing_audit
 
@@ -45,6 +47,8 @@ Restrições:
 Índices:
 
 - `billing_audit_pkey`: `CREATE UNIQUE INDEX billing_audit_pkey ON public.billing_audit USING btree (id)`.
+- `idx_billing_audit_actor_id_fkey`: `CREATE INDEX idx_billing_audit_actor_id_fkey ON public.billing_audit USING btree (actor_id)`.
+- `idx_billing_audit_contract_id_fkey`: `CREATE INDEX idx_billing_audit_contract_id_fkey ON public.billing_audit USING btree (contract_id)`.
 
 ## billing_events
 
@@ -91,6 +95,7 @@ Restrições:
 Índices:
 
 - `billing_jobs_pkey`: `CREATE UNIQUE INDEX billing_jobs_pkey ON public.billing_jobs USING btree (id)`.
+- `idx_billing_jobs_subscription_id_fkey`: `CREATE INDEX idx_billing_jobs_subscription_id_fkey ON public.billing_jobs USING btree (subscription_id)`.
 
 ## billing_payments
 
@@ -118,6 +123,7 @@ Restrições:
 
 - `billing_payments_pkey`: `CREATE UNIQUE INDEX billing_payments_pkey ON public.billing_payments USING btree (id)`.
 - `billing_payments_provider_payment_id_key`: `CREATE UNIQUE INDEX billing_payments_provider_payment_id_key ON public.billing_payments USING btree (provider_payment_id)`.
+- `idx_billing_payments_subscription_id_fkey`: `CREATE INDEX idx_billing_payments_subscription_id_fkey ON public.billing_payments USING btree (subscription_id)`.
 
 ## billing_plans
 
@@ -176,6 +182,7 @@ Restrições:
 Índices:
 
 - `billing_splits_pkey`: `CREATE UNIQUE INDEX billing_splits_pkey ON public.billing_splits USING btree (provider_split_id)`.
+- `idx_billing_splits_payment_id_fkey`: `CREATE INDEX idx_billing_splits_payment_id_fkey ON public.billing_splits USING btree (payment_id)`.
 
 ## billing_subscriptions
 
@@ -190,6 +197,7 @@ Restrições:
 | state | text | Não | — |
 | provider_checkout_id | text | Sim | UNIQUE |
 | provider_subscription_id | text | Sim | UNIQUE |
+| provider_customer_id | text | Sim | — |
 | checkout_url | text | Sim | — |
 | paid_until | timestamp with time zone | Sim | — |
 | grace_until | timestamp with time zone | Sim | — |
@@ -198,11 +206,11 @@ Restrições:
 | cancellation_started_at | timestamp with time zone | Sim | — |
 | last_event_at | timestamp with time zone | Sim | — |
 | created_at | timestamp with time zone | Não | — |
-| provider_customer_id | text | Sim | — |
 
 Restrições:
 
 - `billing_subscriptions_amount_cents_check`: `CHECK ((amount_cents > 0))`.
+- `billing_subscriptions_commission_bounds`: `CHECK (((commission_bps >= 0) AND (commission_bps <= 5000)))`.
 - `billing_subscriptions_contract_id_fkey`: `FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE`.
 - `billing_subscriptions_contract_id_key`: `UNIQUE (contract_id)`.
 - `billing_subscriptions_environment_check`: `CHECK ((environment = ANY (ARRAY['sandbox'::text, 'production'::text])))`.
@@ -256,6 +264,7 @@ Restrições:
 Índices:
 
 - `consent_history_pkey`: `CREATE UNIQUE INDEX consent_history_pkey ON public.consent_history USING btree (id)`.
+- `idx_consent_history_user_id_fkey`: `CREATE INDEX idx_consent_history_user_id_fkey ON public.consent_history USING btree (user_id)`.
 
 ## consents
 
@@ -299,6 +308,8 @@ Restrições:
 Índices:
 
 - `consultation_history_pkey`: `CREATE UNIQUE INDEX consultation_history_pkey ON public.consultation_history USING btree (id)`.
+- `idx_consultation_history_actor_id_fkey`: `CREATE INDEX idx_consultation_history_actor_id_fkey ON public.consultation_history USING btree (actor_id)`.
+- `idx_consultation_history_consultation_id_fkey`: `CREATE INDEX idx_consultation_history_consultation_id_fkey ON public.consultation_history USING btree (consultation_id)`.
 
 ## consultations
 
@@ -328,14 +339,15 @@ Restrições:
 
 - `consultations_calendar`: `CREATE INDEX consultations_calendar ON public.consultations USING btree (starts_at) WHERE (status = 'scheduled'::text)`.
 - `consultations_pkey`: `CREATE UNIQUE INDEX consultations_pkey ON public.consultations USING btree (id)`.
+- `idx_consultations_contract_id_fkey`: `CREATE INDEX idx_consultations_contract_id_fkey ON public.consultations USING btree (contract_id)`.
 
 ## contracts
 
 | Coluna | Tipo PostgreSQL | Nulo | Chave/restrição |
 |---|---|---|---|
-| id | uuid | Não | PK |
-| athlete_id | uuid | Não | FK → users |
-| coach_id | uuid | Não | FK → users |
+| id | uuid | Não | UNIQUE; PK |
+| athlete_id | uuid | Não | FK → users; UNIQUE |
+| coach_id | uuid | Não | FK → users; UNIQUE |
 | status | text | Não | — |
 | created_at | timestamp with time zone | Não | — |
 | decided_at | timestamp with time zone | Sim | — |
@@ -347,13 +359,16 @@ Restrições:
 - `contracts_athlete_id_fkey`: `FOREIGN KEY (athlete_id) REFERENCES users(id) ON DELETE CASCADE`.
 - `contracts_check`: `CHECK ((athlete_id <> coach_id))`.
 - `contracts_coach_id_fkey`: `FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE`.
+- `contracts_members_unique`: `UNIQUE (id, athlete_id, coach_id)`.
 - `contracts_pkey`: `PRIMARY KEY (id)`.
 - `contracts_status_check`: `CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'rejected'::text, 'cancelled'::text, 'suspended'::text])))`.
 
 Índices:
 
 - `contracts_coach`: `CREATE INDEX contracts_coach ON public.contracts USING btree (coach_id, status)`.
+- `contracts_members_unique`: `CREATE UNIQUE INDEX contracts_members_unique ON public.contracts USING btree (id, athlete_id, coach_id)`.
 - `contracts_pkey`: `CREATE UNIQUE INDEX contracts_pkey ON public.contracts USING btree (id)`.
+- `idx_contracts_athlete_id_fkey`: `CREATE INDEX idx_contracts_athlete_id_fkey ON public.contracts USING btree (athlete_id)`.
 - `one_current_contract`: `CREATE UNIQUE INDEX one_current_contract ON public.contracts USING btree (athlete_id, coach_id) WHERE (status = ANY (ARRAY['pending'::text, 'active'::text, 'suspended'::text]))`.
 
 ## executions
@@ -424,6 +439,7 @@ Restrições:
 
 Índices:
 
+- `idx_mail_outbox_user_id_fkey`: `CREATE INDEX idx_mail_outbox_user_id_fkey ON public.mail_outbox USING btree (user_id)`.
 - `mail_outbox_pkey`: `CREATE UNIQUE INDEX mail_outbox_pkey ON public.mail_outbox USING btree (id)`.
 
 ## media
@@ -451,6 +467,7 @@ Restrições:
 
 Índices:
 
+- `idx_media_owner_id_fkey`: `CREATE INDEX idx_media_owner_id_fkey ON public.media USING btree (owner_id)`.
 - `media_object_key_key`: `CREATE UNIQUE INDEX media_object_key_key ON public.media USING btree (object_key)`.
 - `media_pkey`: `CREATE UNIQUE INDEX media_pkey ON public.media USING btree (id)`.
 - `media_resource`: `CREATE INDEX media_resource ON public.media USING btree (resource_id) WHERE (deleted_at IS NULL)`.
@@ -473,6 +490,8 @@ Restrições:
 
 Índices:
 
+- `idx_media_feedback_author_id_fkey`: `CREATE INDEX idx_media_feedback_author_id_fkey ON public.media_feedback USING btree (author_id)`.
+- `idx_media_feedback_media_id_fkey`: `CREATE INDEX idx_media_feedback_media_id_fkey ON public.media_feedback USING btree (media_id)`.
 - `media_feedback_pkey`: `CREATE UNIQUE INDEX media_feedback_pkey ON public.media_feedback USING btree (id)`.
 
 ## media_uploads
@@ -501,6 +520,7 @@ Restrições:
 
 Índices:
 
+- `idx_media_uploads_media_id_fkey`: `CREATE INDEX idx_media_uploads_media_id_fkey ON public.media_uploads USING btree (media_id)`.
 - `media_uploads_expiry`: `CREATE INDEX media_uploads_expiry ON public.media_uploads USING btree (expires_at)`.
 - `media_uploads_owner`: `CREATE INDEX media_uploads_owner ON public.media_uploads USING btree (owner_id)`.
 - `media_uploads_pkey`: `CREATE UNIQUE INDEX media_uploads_pkey ON public.media_uploads USING btree (id)`.
@@ -526,6 +546,8 @@ Restrições:
 
 Índices:
 
+- `idx_messages_media_id_fkey`: `CREATE INDEX idx_messages_media_id_fkey ON public.messages USING btree (media_id)`.
+- `idx_messages_sender_id_fkey`: `CREATE INDEX idx_messages_sender_id_fkey ON public.messages USING btree (sender_id)`.
 - `messages_history`: `CREATE INDEX messages_history ON public.messages USING btree (contract_id, created_at DESC, id DESC)`.
 - `messages_pkey`: `CREATE UNIQUE INDEX messages_pkey ON public.messages USING btree (id)`.
 
@@ -588,6 +610,7 @@ Restrições:
 
 Índices:
 
+- `idx_password_resets_user_id_fkey`: `CREATE INDEX idx_password_resets_user_id_fkey ON public.password_resets USING btree (user_id)`.
 - `password_resets_pkey`: `CREATE UNIQUE INDEX password_resets_pkey ON public.password_resets USING btree (token_hash)`.
 
 ## privacy_requests
@@ -608,6 +631,7 @@ Restrições:
 
 Índices:
 
+- `idx_privacy_requests_user_id_fkey`: `CREATE INDEX idx_privacy_requests_user_id_fkey ON public.privacy_requests USING btree (user_id)`.
 - `privacy_requests_pkey`: `CREATE UNIQUE INDEX privacy_requests_pkey ON public.privacy_requests USING btree (id)`.
 
 ## private_health
@@ -679,6 +703,8 @@ Restrições:
 
 Índices:
 
+- `idx_review_moderation_review_id_fkey`: `CREATE INDEX idx_review_moderation_review_id_fkey ON public.review_moderation USING btree (review_id)`.
+- `idx_review_moderation_reviewer_id_fkey`: `CREATE INDEX idx_review_moderation_reviewer_id_fkey ON public.review_moderation USING btree (reviewer_id)`.
 - `review_moderation_pkey`: `CREATE UNIQUE INDEX review_moderation_pkey ON public.review_moderation USING btree (id)`.
 
 ## review_reports
@@ -701,6 +727,7 @@ Restrições:
 
 Índices:
 
+- `idx_review_reports_reporter_id_fkey`: `CREATE INDEX idx_review_reports_reporter_id_fkey ON public.review_reports USING btree (reporter_id)`.
 - `review_reports_pkey`: `CREATE UNIQUE INDEX review_reports_pkey ON public.review_reports USING btree (id)`.
 - `review_reports_review_id_reporter_id_key`: `CREATE UNIQUE INDEX review_reports_review_id_reporter_id_key ON public.review_reports USING btree (review_id, reporter_id)`.
 
@@ -709,9 +736,9 @@ Restrições:
 | Coluna | Tipo PostgreSQL | Nulo | Chave/restrição |
 |---|---|---|---|
 | id | uuid | Não | PK |
-| contract_id | uuid | Não | FK → contracts; UNIQUE |
-| athlete_id | uuid | Não | FK → users |
-| coach_id | uuid | Não | FK → users |
+| contract_id | uuid | Não | UNIQUE; FK → contracts |
+| athlete_id | uuid | Não | FK → users; FK → contracts |
+| coach_id | uuid | Não | FK → users; FK → contracts |
 | rating | integer | Não | — |
 | body | text | Não | — |
 | reply | text | Sim | — |
@@ -725,14 +752,15 @@ Restrições:
 - `reviews_athlete_id_fkey`: `FOREIGN KEY (athlete_id) REFERENCES users(id) ON DELETE CASCADE`.
 - `reviews_body_check`: `CHECK (((char_length(body) >= 5) AND (char_length(body) <= 2000)))`.
 - `reviews_coach_id_fkey`: `FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE`.
-- `reviews_contract_id_fkey`: `FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE`.
 - `reviews_contract_id_key`: `UNIQUE (contract_id)`.
+- `reviews_contract_members_fkey`: `FOREIGN KEY (contract_id, athlete_id, coach_id) REFERENCES contracts(id, athlete_id, coach_id) ON DELETE CASCADE`.
 - `reviews_pkey`: `PRIMARY KEY (id)`.
 - `reviews_rating_check`: `CHECK (((rating >= 1) AND (rating <= 5)))`.
 - `reviews_reply_check`: `CHECK (((char_length(reply) >= 5) AND (char_length(reply) <= 2000)))`.
 
 Índices:
 
+- `idx_reviews_athlete_id_fkey`: `CREATE INDEX idx_reviews_athlete_id_fkey ON public.reviews USING btree (athlete_id)`.
 - `reviews_coach`: `CREATE INDEX reviews_coach ON public.reviews USING btree (coach_id, created_at DESC)`.
 - `reviews_contract_id_key`: `CREATE UNIQUE INDEX reviews_contract_id_key ON public.reviews USING btree (contract_id)`.
 - `reviews_pkey`: `CREATE UNIQUE INDEX reviews_pkey ON public.reviews USING btree (id)`.
@@ -768,6 +796,7 @@ Restrições:
 
 Índices:
 
+- `idx_sessions_user_id_fkey`: `CREATE INDEX idx_sessions_user_id_fkey ON public.sessions USING btree (user_id)`.
 - `sessions_expiry`: `CREATE INDEX sessions_expiry ON public.sessions USING btree (expires_at)`.
 - `sessions_pkey`: `CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (token_hash)`.
 
@@ -816,6 +845,8 @@ Restrições:
 
 Índices:
 
+- `idx_verification_audit_reviewer_id_fkey`: `CREATE INDEX idx_verification_audit_reviewer_id_fkey ON public.verification_audit USING btree (reviewer_id)`.
+- `idx_verification_audit_verification_id_fkey`: `CREATE INDEX idx_verification_audit_verification_id_fkey ON public.verification_audit USING btree (verification_id)`.
 - `verification_audit_pkey`: `CREATE UNIQUE INDEX verification_audit_pkey ON public.verification_audit USING btree (id)`.
 
 ## verifications
@@ -845,6 +876,9 @@ Restrições:
 
 Índices:
 
+- `idx_verification_document`: `CREATE INDEX idx_verification_document ON public.verifications USING btree (document_id)`.
+- `idx_verifications_coach_id_fkey`: `CREATE INDEX idx_verifications_coach_id_fkey ON public.verifications USING btree (coach_id)`.
+- `idx_verifications_reviewer_id_fkey`: `CREATE INDEX idx_verifications_reviewer_id_fkey ON public.verifications USING btree (reviewer_id)`.
 - `one_pending_verification`: `CREATE UNIQUE INDEX one_pending_verification ON public.verifications USING btree (coach_id) WHERE (status = 'pending'::text)`.
 - `verifications_pkey`: `CREATE UNIQUE INDEX verifications_pkey ON public.verifications USING btree (id)`.
 
