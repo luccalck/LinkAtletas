@@ -21,6 +21,9 @@ updates:
       timezone: America/Sao_Paulo
     open-pull-requests-limit: 3
     groups:
+      react-web:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+        update-types: [minor, patch]
       dependencias:
         patterns: ['*']
         update-types: [minor, patch]
