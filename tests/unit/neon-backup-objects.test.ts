@@ -54,6 +54,17 @@ describe('copia independente de objetos e monitor', () => {
     expect(destination.read().length).toBe(0)
   })
 
+  it('cancela o request S3 quando a origem falha antes de enviar bytes', async () => {
+    let aborted = false
+    const send = vi.fn((_command: PutObjectCommand, options: { abortSignal: AbortSignal }) => new Promise((_resolve, reject) => {
+      const cancel = () => { aborted = true; reject(new Error('Upload cancelado.')) }
+      if (options.abortSignal.aborted) cancel()
+      else options.abortSignal.addEventListener('abort', cancel, { once: true })
+    }))
+    await expect(copyEncryptedObject(source(Buffer.from('texto privado')), 'source', 'key', { send } as unknown as S3Client, 'backup', 'key')).rejects.toThrow('Copia cifrada ou conferencia de objeto falhou.')
+    expect(aborted).toBe(true)
+  })
+
   it('limita leitura quando o tamanho informado nao corresponde ao fluxo', async () => {
     const client = { send: vi.fn(async () => ({ ContentLength: 4, Body: Readable.from([Buffer.alloc(20)]) })) } as unknown as S3Client
     await expect(readObject(client, 'bucket', 'key', 8)).rejects.toThrow()

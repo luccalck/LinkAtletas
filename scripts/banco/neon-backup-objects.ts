@@ -101,11 +101,12 @@ export async function copyEncryptedObject(source: S3Client, sourceBucket: string
       done(null, chunk)
     },
   })
+  const controller = new AbortController()
   const transfer = pipeline(response.Body as Readable, transform)
   const upload = target.send(new PutObjectCommand({
     Bucket: targetBucket, Key: targetKey, Body: transform, ContentLength: response.ContentLength,
     ContentType: 'application/octet-stream', CacheControl: 'private, no-store',
-  }))
+  }), { abortSignal: controller.signal })
   try {
     await Promise.all([transfer, upload])
     if (size !== response.ContentLength || prefix.toString() !== 'la1:') throw new Error('Objeto de origem nao e um envelope privado completo.')
@@ -114,6 +115,7 @@ export async function copyEncryptedObject(source: S3Client, sourceBucket: string
     if (saved.sha256 !== expected.sha256 || saved.bytes !== expected.bytes) throw new Error('Copia de objeto diverge da origem.')
     return expected
   } catch {
+    controller.abort()
     ;(response.Body as Readable).destroy()
     transform.destroy()
     await Promise.allSettled([transfer, upload])
