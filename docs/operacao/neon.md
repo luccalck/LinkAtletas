@@ -1,6 +1,6 @@
 # Operação do PostgreSQL no Neon
 
-O Neon hospeda o PostgreSQL da aplicação publicada. O PostgreSQL do Docker continua separado, para desenvolvimento e testes. Não existe sincronização automática entre eles.
+O Neon hospeda o PostgreSQL da aplicação publicada. O PostgreSQL do Docker permanece separado, para desenvolvimento e testes; não existe sincronização automática entre os ambientes.
 
 ## Ambientes e contas
 
@@ -9,21 +9,29 @@ O Neon hospeda o PostgreSQL da aplicação publicada. O PostgreSQL do Docker con
 | Production | `neondb` | `linkatletas_production_runtime` |
 | Preview | `linkatletas_preview`, em branch separado | `linkatletas_preview_runtime` |
 
-As contas de execução não são proprietárias do banco nem das tabelas. Recebem `CONNECT`, `USAGE` e operações de dados necessárias; `schema_migrations` e `metric_types` são somente leitura. Não recebem criação de esquema, `TRUNCATE`, criação de roles/bancos, replicação ou bypass de RLS. A autorização por usuário e recurso é aplicada pela API; o navegador não recebe a conexão PostgreSQL.
+A aplicação não possui o banco nem as tabelas. O navegador acessa a API, que autoriza cada usuário e recurso; a conexão PostgreSQL não é entregue ao cliente. O projeto não usa Neon Auth para autenticação: contas e sessões são gerenciadas pela API do LinkAtletas.
 
-Cada deployment recebe apenas `DATABASE_URL`, como segredo no ambiente correspondente. Não manter aliases com senha ou URL de proprietário junto da conta limitada. Contas de manutenção e suas senhas ficam fora do deploy e do repositório. Usar conexão direta de manutenção para migrations e ferramentas administrativas.
+A [allowlist de privilégios](../../server/db/runtime-privileges.ts) define as operações necessárias nas 37 tabelas:
+
+- `schema_migrations` e `metric_types`: somente `SELECT`.
+- `administrative_audit`, `billing_audit`, `consent_history`, `consultation_history`, `review_moderation` e `verification_audit`: apenas `SELECT` e `INSERT`, sem edição ou exclusão pela aplicação.
+- Registros principais relacionados, como usuários, contratos, consultas e avaliações: sem `DELETE` pela role runtime, impedindo que a aplicação apague o histórico por cascata. Encerramento de conta e remoção de conteúdo usam os fluxos previstos de anonimização e exclusão lógica.
+- Sessões, notificações, filas e outras tabelas operacionais: operações específicas previstas no código, incluindo exclusões necessárias.
+
+O configurador remove grants antigos de tabela e coluna, recusa permissões incompatíveis herdadas e retira grants automáticos para tabelas futuras. Uma nova tabela permanece inacessível até sua inclusão consciente na allowlist. Runtime não recebe DDL, `TRUNCATE`, criação de roles/bancos, replicação ou bypass de RLS.
+
+Nas variáveis PostgreSQL do deploy, manter somente `DATABASE_URL`, com a conta limitada do ambiente. Não manter aliases contendo senhas ou URLs proprietárias. A manutenção usa conexão direta e credencial separada, fora do deploy e do Git. Em Preview, a role proprietária legada deve ficar `NOLOGIN`; o acesso administrativo usa elevação explícita por `SET ROLE` a partir da credencial autorizada. Não apagar a role proprietária nem transferir seus objetos sem planejamento.
 
 ## Conexões e limites
 
-- Aplicação: endpoint com `-pooler` e `sslmode=verify-full`, validando o certificado do servidor.
+- Aplicação: endpoint com `-pooler` e `sslmode=verify-full`, validando o certificado do servidor. Manutenção e backup: conexão direta.
 - Cada pool da API admite até dez conexões e espera até cinco segundos para conectar.
-- A role limita consultas a 30 segundos, espera por locks a cinco segundos e transações ociosas a um minuto. O cliente também limita a espera de consulta a 35 segundos.
-- A transação que mantém a trava do agendador usa uma exceção local de cinco minutos, correspondente ao máximo da função Vercel. Assim, processamento de filas e serviços externos não libera a trava antecipadamente; o rollback restaura o limite normal.
-- Definir os parâmetros na role e na base correspondente. O proxy/pooler pode não preservar parâmetros enviados no startup do cliente. Verificar os valores efetivos com `current_setting`.
-- Alterações nas configurações de role afetam novas sessões; conexões já abertas podem manter valores antigos. Preparar e validar uma conta nova antes de trocar o segredo do deploy.
-- Desconexões ociosas ou de clientes em uso são tratadas sem registrar a mensagem original, que pode conter dados privados. A consulta continua rejeitando a falha; o tratamento impede o encerramento por evento sem listener e evita registrar o mesmo erro duas vezes.
+- Consultas têm limite de 30 segundos; espera por locks, cinco segundos; transações ociosas, um minuto. O cliente limita a espera de consulta a 35 segundos.
+- A transação da trava do agendador usa uma exceção local de cinco minutos, correspondente ao máximo da função Vercel. O término da transação restaura o limite normal.
+- Configurar os parâmetros na role e na base correspondente e conferir `current_setting`: o pooler pode não preservar parâmetros do startup. Alterações de role afetam novas sessões.
+- Desconexões são tratadas sem registrar mensagens originais potencialmente privadas. A consulta continua falhando explicitamente; o tratamento não converte falha em sucesso.
 
-Exemplo de configuração por ambiente, executado por manutenção:
+Exemplo de configuração por manutenção, após conferir o ambiente:
 
 ```sql
 ALTER ROLE linkatletas_production_runtime IN DATABASE neondb SET statement_timeout = '30s';
@@ -31,48 +39,76 @@ ALTER ROLE linkatletas_production_runtime IN DATABASE neondb SET lock_timeout = 
 ALTER ROLE linkatletas_production_runtime IN DATABASE neondb SET idle_in_transaction_session_timeout = '60s';
 ```
 
-Não usar os limites de execução da aplicação para cargas administrativas longas sem avaliar a operação. Verificar o ambiente antes de rodar qualquer comando.
-
 ## Esquema e publicação
 
-As migrations em `server/db/migrations` são a fonte de evolução do esquema. O executor utiliza transação e trava para evitar aplicações concorrentes. Não editar migrations aplicadas; acrescentar um novo SQL.
+As [migrations](../../server/db/migrations) são a fonte de evolução do esquema. O executor usa transação e trava para serializar execuções concorrentes e verifica todas as migrations aplicadas antes de executar qualquer SQL pendente. Arquivo aplicado ausente ou checksum divergente interrompem a operação; alterações já realizadas na transação são desfeitas.
 
-Antes de publicar, aplicar e testar a mudança em banco isolado. Conferir os dados existentes antes de adicionar restrições, usar conexão de manutenção direta e limitar a espera por locks. Se a validação falhar, corrigir a causa; não remover dados automaticamente para forçar a migração.
+O SHA-256 normaliza CRLF para LF. Outras alterações no conteúdo não são ignoradas. A [baseline 001–007](../../server/db/migration-baseline.ts) foi auditada contra os arquivos do commit `3a09d67`; permite completar checksums legados ausentes, preservando `applied_at`. Essa comparação não prova qual SQL foi executado historicamente no banco. Migration legada desconhecida sem checksum é recusada. Novas migrations recebem checksum ao serem aplicadas; não editar SQL já aplicado.
 
-A migração 007 vincula os participantes de cada avaliação ao contrato, limita a comissão de assinaturas às regras existentes e cria índices de apoio às FKs sem duplicar um índice já utilizável. O [dicionário](../banco/dicionario-dados.md), o [DER](../diagramas/der.mmd) e os metadados são gerados a partir do esquema migrado. A nulabilidade é registrada nas colunas, mantendo a exportação compatível entre PostgreSQL 17 local e 18 do Neon.
+A migration 007 vincula avaliações aos participantes do contrato, limita comissões e cria índices de apoio às FKs. A 008 reforça papéis de atleta/treinador, remetentes pertencentes ao contrato, valores financeiros não negativos e índices das filas e expiração. Chaves compostas e CHECKs protegem também alterações concorrentes; encerramento de conta e alterações válidas de participantes são preservados.
 
-## Recuperação e limites do serviço
+Antes de publicar, aplicar e testar em banco `_test` isolado, conferir os dados existentes e usar manutenção com espera por locks limitada. Uma falha deve ser investigada, sem remover dados automaticamente para forçar a migração. Consultar os testes de [migrations](../../tests/integration/migrations.test.ts) e [integridade](../../tests/integration/database-rules.test.ts). O [dicionário](../banco/dicionario-dados.md), o [DER](../diagramas/der.mmd) e os metadados são gerados do esquema migrado, compatível com PostgreSQL 17 local e 18 do Neon.
 
-No plano Free verificado, a janela de histórico está no máximo de seis horas; não representa backup independente de longo prazo. Antes de uma migração importante, confirmar que o histórico está disponível. Restaurar primeiro para um ambiente isolado e conferir dados, cifra e arquivos; não restaurar diretamente sobre produção sem planejamento.
+## Filas, e-mails e escala a zero
 
-Os comandos originais `backup.ts` e `restore.ts` atendem à instalação com Docker. O backup remoto utiliza comandos e credenciais exclusivos, conforme o procedimento abaixo.
+E-mails são gravados cifrados em `mail_outbox`. Depois do commit, a aplicação tenta enviar imediatamente o item específico; na Vercel, `waitUntil` mantém o trabalho associado à execução da função. Uma falha deixa o item na fila para nova tentativa, em vez de depender exclusivamente do agendador para o primeiro envio. Preview mantém envio externo desativado.
 
-O plano atual não oferece allowlist de IPs/VPC nem a proteção de branch exibida na integração. A conexão pública autenticada permanece necessária para a Vercel. Não desligar a rede pública nem contratar um plano automaticamente para encerrar um checklist. Escala a zero está configurada em cinco minutos e compute em 0,25 CU.
+A periodicidade operacional recomendada para o cron-job.org é **quinze minutos**. Ele chama `/api/internal/jobs` com o segredo exclusivo no cabeçalho `Authorization`; a rota processa filas, reconciliações e limpezas sob trava, impedindo sobreposição. A mudança da periodicidade precisa ser aplicada e conferida no painel do serviço: o código não altera a agenda remota. A configuração anterior de um minuto mantinha o compute acordado, apesar da escala a zero após cinco minutos.
 
-Referências: [pooling no Neon](https://neon.com/docs/connect/connection-pooling), [roles e privilégios](https://neon.com/docs/manage/roles), [eventos do pool node-postgres](https://node-postgres.com/apis/pool).
+O intervalo maior reduz despertares sem tirar o envio imediato do fluxo normal. Falhas de SMTP podem adiar a recuperação pelo cron; observar tentativas esgotadas e erros de execução. Aceite SMTP não garante entrega na caixa de entrada.
 
 ## Backup independente no Tigris
 
-O [workflow](../../.github/workflows/neon-backup.yml) executa diariamente às 06:30 UTC (03:30 em São Paulo) e também aceita disparo manual na aba Actions. O agendamento do GitHub pode atrasar e depende do repositório e das Actions permanecerem ativos; conferir a última execução e as notificações de falha.
+O [workflow de backup](../../.github/workflows/neon-backup.yml) define execução diária às 06:30 UTC (03:30 em São Paulo), além do disparo manual. O formato **v2** inclui:
 
-1. A conta `linkatletas_backup_reader` acessa o Neon diretamente com TLS validado, somente leitura e sem propriedade ou criação de objetos.
-2. Uma transação de leitura exporta o mesmo snapshot usado no `pg_dump` PostgreSQL 18. O manifesto registra tabelas, contagens e migrations desse snapshot.
-3. Dump e manifesto recebem cifra AES-256-GCM com chave exclusiva. A cópia vai para `linkatletas-backups-production`, privado, em São Paulo. A credencial S3 tem acesso somente a esse bucket, sem administração dos demais.
-4. O processo baixa e autentica a cópia, compara o dump e exige recusa do acesso anônimo. Somente então remove backups desse processo com mais de sete dias; não usa exclusão por prefixo genérico em buckets da aplicação.
-5. Cada execução restaura o arquivo em PostgreSQL 18 temporário do runner, em base vazia com sufixo `_test`, e confere tabelas, contagens, migrations e restrições. Produção nunca é destino da restauração de teste.
+1. Snapshot PostgreSQL consistente e somente leitura, compartilhado com `pg_dump` PostgreSQL 18; dump, tabelas, contagens, extensões e checksums das migrations.
+2. Política efetiva de privilégios de dados da role runtime, para recriar uma role limitada no teste de recuperação, sem copiar senhas ou contas gerenciadas do provedor.
+3. Cópia dos objetos privados ativos referenciados em `media`, preservando a cifra original e registrando tamanho e SHA-256 no manifesto.
+4. Dump e manifesto protegidos por AES-256-GCM com chave exclusiva; destino em bucket privado de backup, separado dos buckets da aplicação. A origem PostgreSQL e a origem S3 usam credenciais somente leitura.
+5. Leitura de conferência e recusa de acesso anônimo. Upload concluído não significa recuperação validada.
 
-Consultar o resultado em **Actions → Backup cifrado do Neon**. Sucesso exige tanto a cópia quanto a restauração. Os logs contêm somente metadados operacionais; dumps não são anexados como artifacts do GitHub.
+Cada execução deve restaurar o v2 em PostgreSQL 18 temporário e S3 local vazio do runner. O teste compara contagens, migrations, checksums, extensões, restrições, arquivos e decriptação dos seis campos privados previstos com a chave original. Exercita também saúde, cadastro, login, perfil, logout e entrada inválida por uma API isolada com conta fictícia e role limitada, sem SMTP externo ou pagamentos reais.
 
-### Configuração restrita
+Somente após a recuperação completa o processo publica um marcador autenticado de validação. Cópias v1 históricas não comprovam essa recuperação completa. A existência do workflow não comprova uma execução recente: conferir **Actions → Backup cifrado do Neon** e os resultados do monitor antes de considerar a cópia utilizável. Dumps e conteúdo privado não são enviados como artifacts ou para os logs.
 
-Secrets do repositório: `NEON_BACKUP_DATABASE_URL`, `NEON_BACKUP_ENCRYPTION_KEY`, `NEON_BACKUP_ACCESS_KEY` e `NEON_BACKUP_SECRET_KEY`. Variáveis: `NEON_BACKUP_S3_ENDPOINT`, `NEON_BACKUP_BUCKET` e `NEON_BACKUP_DATA_KEY_FINGERPRINT`. A conexão de leitura e a chave do bucket são exclusivas do backup; não usar as contas runtime, de manutenção ou as credenciais dos arquivos da aplicação.
+### Credenciais e chaves
 
-A chave do backup contém 32 bytes em base64. Preservar uma cópia segura dela e da **DATA_ENCRYPTION_KEY original**, separadas dos dumps e do Git. O fingerprint apenas identifica a chave de dados; não permite recuperá-la. Sem a chave original, os campos privados continuam ilegíveis após restaurar o banco. Se a chave de dados mudar, manter as versões necessárias e atualizar o fingerprint conscientemente.
+Configurar no repositório conforme os arquivos dos workflows, sem colar valores em documentos ou issues:
 
-### Recuperação e limites
+| Finalidade | Configuração |
+|---|---|
+| Leitura do Neon | Secret `NEON_BACKUP_DATABASE_URL`, com conta dedicada somente leitura e conexão direta TLS. |
+| Proteção do backup | Secret `NEON_BACKUP_ENCRYPTION_KEY`, 32 bytes em base64, exclusivo do backup. |
+| Autenticação da recuperação | Secret `NEON_BACKUP_VALIDATION_KEY`, 32 bytes em base64, exclusivo dos marcadores; diferente das chaves do backup e dos dados. |
+| Dados privados originais | Secret `NEON_BACKUP_DATA_ENCRYPTION_KEY`, com a `DATA_ENCRYPTION_KEY` original; variável `NEON_BACKUP_DATA_KEY_FINGERPRINT` para conferir sua identidade. |
+| Política de execução | Variável `NEON_BACKUP_RUNTIME_ROLE`, identificando a role cujos privilégios serão registrados. |
+| Bucket exclusivo de backup | Variáveis `NEON_BACKUP_S3_ENDPOINT` e `NEON_BACKUP_BUCKET`; secrets `NEON_BACKUP_ACCESS_KEY` e `NEON_BACKUP_SECRET_KEY`. |
+| Leitura dos arquivos da aplicação | Variáveis `NEON_BACKUP_SOURCE_S3_ENDPOINT` e `NEON_BACKUP_SOURCE_S3_BUCKET`; secrets `NEON_BACKUP_SOURCE_S3_ACCESS_KEY` e `NEON_BACKUP_SOURCE_S3_SECRET_KEY`, somente leitura. |
+| Monitor independente | Secrets `NEON_BACKUP_MONITOR_ACCESS_KEY` e `NEON_BACKUP_MONITOR_SECRET_KEY`, somente leitura no bucket de backup; usa a chave de validação e as variáveis de destino, sem receber chaves de cifra do dump/dados ou conexão PostgreSQL. |
 
-Para uma recuperação real, baixar a cópia autorizada e executar `node --import tsx scripts/banco/neon-restore-test.ts <chave-do-objeto>` com as variáveis de backup e `NEON_BACKUP_RESTORE_URL` apontando para PostgreSQL 18 local, vazio, com nome terminado em `_test`. O comando recusa outro host e banco ocupado, incluindo tabelas, funções e tipos no esquema `public`. Remove apenas o esquema padrão comprovadamente vazio, sem `CASCADE`, para que o dump recrie sua estrutura original. Conferir o resultado antes de planejar a migração de recuperação; esse comando não substitui produção automaticamente.
+Preservar cópias seguras das três chaves, separadas dos dumps e do Git. O fingerprint não recupera a chave original: sem ela, o banco pode ser restaurado e os campos privados continuarem ilegíveis. Se houver rotação, preservar as versões necessárias para as cópias retidas. A chave do bucket não substitui nenhuma chave de cifra ou de validação.
 
-A cópia cobre o esquema `public` e os registros da aplicação. Não inclui roles, configuração do provedor nem os bytes dos arquivos guardados nos outros buckets Tigris. Os metadados desses arquivos estão no banco; os objetos e a chave AES original precisam de preservação própria. O teste confirma a restauração e as contagens, sem enviar conteúdo de usuários para logs.
+### Recuperação, monitor e objetivos
 
-O limite de arquivo cifrado é 128 MiB, com falha explícita ao exceder a memória prevista. A capacidade deve ser revisada conforme o banco cresce. Além da limpeza do workflow, uma regra nativa do Tigris expira objetos do prefixo exclusivo `neon/` após sete dias, mesmo se o agendamento parar. A execução dessa política é assíncrona no provedor; conferir a regra no painel ao alterar o bucket. A rotina não contrata planos, mas o uso deve permanecer dentro das franquias dos provedores. Backups também contêm dados posteriormente excluídos: ao recuperar, reaplicar as eliminações necessárias antes de reabrir o serviço.
+Para testar uma cópia autorizada, configurar `NEON_BACKUP_RESTORE_URL` para PostgreSQL 18 **local, vazio e com sufixo `_test`**. O S3 de recuperação usa `NEON_BACKUP_RESTORE_S3_ENDPOINT`, `NEON_BACKUP_RESTORE_S3_BUCKET`, `NEON_BACKUP_RESTORE_S3_ACCESS_KEY` e `NEON_BACKUP_RESTORE_S3_SECRET_KEY`; o endpoint deve ser local e o bucket vazio, exclusivo e terminado em `-test`, conforme o validador.
+
+```powershell
+node --import tsx scripts/banco/neon-restore-test.ts <chave-do-objeto>
+node --import tsx scripts/banco/neon-backup-check.ts
+```
+
+O comando recusa destino ocupado, inclusive funções e tipos, e nunca substitui produção automaticamente. Após uma restauração real planejada, reaplicar eliminações posteriores ao snapshot antes de reabrir o serviço. A transação MVCC cobre o banco, a lista de arquivos ativos e o dump, mas termina antes da cópia dos objetos S3. Banco e S3 não compartilham transação: as chaves finais são imutáveis, e objeto ausente ou inconsistente durante a cópia causa falha. Partes temporárias de uploads não compõem a recuperação.
+
+Os objetivos acadêmicos são **RPO de 24 horas** (perda máxima pretendida entre cópias) e **RTO de 60 minutos** (tempo pretendido de recuperação). São objetivos operacionais, não SLA ou promessa de disponibilidade; registrar e avaliar o tempo medido dos ensaios. O tempo técnico de restauração não inclui detecção de incidente nem provisionamento e decisões de uma recuperação real.
+
+O [monitor independente](../../.github/workflows/neon-backup-monitor.yml) roda a cada hora, no minuto 17, e aceita disparo manual. Consulta somente o Tigris, sem conectar ou acordar o Neon. Exige marcador autenticado de recuperação completa com até **26 horas desde a criação do snapshot** e confere a existência, o tamanho e o hash declarado nos metadados do arquivo correspondente. Não baixa nem restaura o conteúdo novamente; essa verificação completa pertence ao ensaio de recuperação. Falta, atraso, marcador inválido, metadados divergentes ou acesso negado fazem o job falhar. Habilitar notificações de falha das Actions; o GitHub pode atrasar agendas e o monitor não envia alertas por um canal externo próprio.
+
+O arquivo cifrado e cada objeto têm limite de 128 MiB. A retenção é de sete dias, com limpeza restrita aos objetos desse processo após uma recuperação validada e regra de expiração no prefixo exclusivo `neon/` do bucket. A regra do provedor é assíncrona e deve ser conferida no painel. Rever capacidade, custo e retenção conforme o projeto cresce, sem contratar plano automaticamente.
+
+## Limites do plano e do escopo
+
+No plano Free auditado, o histórico nativo do Neon alcança seis horas; não substitui backup remoto independente. A escala a zero está configurada para cinco minutos e o compute para 0,25 CU. Allowlist de IPs/VPC e proteção de branch não estão disponíveis no plano atual. A aplicação usa rede pública autenticada com TLS validado: não desativar essa rede nem contratar upgrade para encerrar um checklist.
+
+O backup não recria contas do provedor, configurações de Vercel/Neon, segredos ou integrações externas. A recuperação validada cobre banco, arquivos ativos, cifra e ensaio sintético da API; não homologa SMTP, pagamentos, Google ou produção inteira.
+
+Referências: [pooling no Neon](https://neon.com/docs/connect/connection-pooling), [roles e privilégios](https://neon.com/docs/manage/roles), [eventos do pool node-postgres](https://node-postgres.com/apis/pool).

@@ -1,0 +1,37 @@
+name: Monitor independente do backup Neon
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: neon-backup-monitor
+  cancel-in-progress: false
+jobs:
+  freshness:
+    name: Conferir ultima recuperacao validada
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      NEON_BACKUP_S3_ENDPOINT: ${{ vars.NEON_BACKUP_S3_ENDPOINT }}
+      NEON_BACKUP_BUCKET: ${{ vars.NEON_BACKUP_BUCKET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24.22.2
+          cache: pnpm
+      - name: Instalar dependencias travadas
+        run: pnpm install --frozen-lockfile
+      - name: Verificar atualidade sem conexao ao banco
+        env:
+          NEON_BACKUP_VALIDATION_KEY: ${{ secrets.NEON_BACKUP_VALIDATION_KEY }}
+          NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_MONITOR_ACCESS_KEY }}
+          NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_MONITOR_SECRET_KEY }}
+        run: node --import tsx scripts/banco/neon-backup-check.ts

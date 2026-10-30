@@ -10,9 +10,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   backup:
-    name: Copia cifrada e restauracao isolada
+    name: Copia completa e restauracao isolada
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       restore:
         image: postgres:18-alpine
@@ -26,14 +26,17 @@ jobs:
           --health-cmd "pg_isready -U restore_test -d linkatletas_backup_restore_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      NEON_BACKUP_DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
-      NEON_BACKUP_ENCRYPTION_KEY: ${{ secrets.NEON_BACKUP_ENCRYPTION_KEY }}
       NEON_BACKUP_DATA_KEY_FINGERPRINT: ${{ vars.NEON_BACKUP_DATA_KEY_FINGERPRINT }}
+      NEON_BACKUP_RUNTIME_ROLE: ${{ vars.NEON_BACKUP_RUNTIME_ROLE }}
       NEON_BACKUP_S3_ENDPOINT: ${{ vars.NEON_BACKUP_S3_ENDPOINT }}
       NEON_BACKUP_BUCKET: ${{ vars.NEON_BACKUP_BUCKET }}
-      NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_ACCESS_KEY }}
-      NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_SECRET_KEY }}
+      NEON_BACKUP_SOURCE_S3_ENDPOINT: ${{ vars.NEON_BACKUP_SOURCE_S3_ENDPOINT }}
+      NEON_BACKUP_SOURCE_S3_BUCKET: ${{ vars.NEON_BACKUP_SOURCE_S3_BUCKET }}
       NEON_BACKUP_RESTORE_URL: postgresql://restore_test:restore_only_local_ci@127.0.0.1:54338/linkatletas_backup_restore_test?sslmode=disable
+      NEON_BACKUP_RESTORE_S3_ENDPOINT: http://127.0.0.1:8333
+      NEON_BACKUP_RESTORE_S3_BUCKET: linkatletas-restore-neon-test
+      NEON_BACKUP_RESTORE_S3_ACCESS_KEY: linkatletas-local
+      NEON_BACKUP_RESTORE_S3_SECRET_KEY: local-only-change-in-production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -47,10 +50,39 @@ jobs:
           cache: pnpm
       - name: Instalar dependencias travadas
         run: pnpm install --frozen-lockfile
-      - name: Cifrar snapshot e conferir copia privada
+      - name: Preparar armazenamento isolado de recuperacao
+        run: |
+          docker run -d --name neon-restore-s3 -p 127.0.0.1:8333:8333 --mount type=volume,target=/data --mount "type=bind,source=$PWD/infra/s3.local.json,target=/config/s3.json,readonly" chrislusf/seaweedfs:4.48 server -dir=/data -filer -s3 -s3.config=/config/s3.json -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=1024
+          for attempt in $(seq 1 30); do
+            if docker exec neon-restore-s3 wget -q -O /dev/null http://localhost:9333/cluster/status; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Cifrar snapshot e copiar arquivos privados
         id: create
-        run: node --import tsx scripts/banco/neon-backup.ts
-      - name: Restaurar e conferir em PostgreSQL temporario
         env:
+          NEON_BACKUP_DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
+          NEON_BACKUP_ENCRYPTION_KEY: ${{ secrets.NEON_BACKUP_ENCRYPTION_KEY }}
+          NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_ACCESS_KEY }}
+          NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_SECRET_KEY }}
+          NEON_BACKUP_SOURCE_S3_ACCESS_KEY: ${{ secrets.NEON_BACKUP_SOURCE_S3_ACCESS_KEY }}
+          NEON_BACKUP_SOURCE_S3_SECRET_KEY: ${{ secrets.NEON_BACKUP_SOURCE_S3_SECRET_KEY }}
+        run: node --import tsx scripts/banco/neon-backup.ts
+      - name: Restaurar banco arquivos e aplicar ensaio da API
+        env:
+          NEON_BACKUP_ENCRYPTION_KEY: ${{ secrets.NEON_BACKUP_ENCRYPTION_KEY }}
+          NEON_BACKUP_DATA_ENCRYPTION_KEY: ${{ secrets.NEON_BACKUP_DATA_ENCRYPTION_KEY }}
+          NEON_BACKUP_VALIDATION_KEY: ${{ secrets.NEON_BACKUP_VALIDATION_KEY }}
+          NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_ACCESS_KEY }}
+          NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_SECRET_KEY }}
           BACKUP_KEY: ${{ steps.create.outputs.backup_key }}
         run: node --import tsx scripts/banco/neon-restore-test.ts "$BACKUP_KEY"
+      - name: Conferir marcador autenticado da recuperacao
+        env:
+          NEON_BACKUP_VALIDATION_KEY: ${{ secrets.NEON_BACKUP_VALIDATION_KEY }}
+          NEON_BACKUP_ACCESS_KEY: ${{ secrets.NEON_BACKUP_MONITOR_ACCESS_KEY }}
+          NEON_BACKUP_SECRET_KEY: ${{ secrets.NEON_BACKUP_MONITOR_SECRET_KEY }}
+        run: node --import tsx scripts/banco/neon-backup-check.ts
+      - name: Encerrar armazenamento descartavel
+        if: always()
+        run: docker rm -fv neon-restore-s3 2>/dev/null || true

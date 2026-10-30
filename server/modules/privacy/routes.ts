@@ -11,7 +11,11 @@ import {
   verifyPassword,
 } from '../../shared/security.js'
 import { encryptPrivate, decryptPrivate } from '../../shared/crypto.js'
-import { queueMail } from '../../services/mail.js'
+import {
+  drainMailDeliveries,
+  queueMail,
+  scheduleMailDelivery,
+} from '../../services/mail.js'
 import { bodySchema } from '../../shared/validation.js'
 import { deleteMediaObjects } from '../media/routes.js'
 
@@ -37,6 +41,7 @@ async function accountLock(client: import('pg').PoolClient, userId: string) {
     fail(401, 'UNAUTHENTICATED', 'Esta conta foi encerrada.')
 }
 export async function platformRoutes(app: FastifyInstance, pool: Pool) {
+  app.addHook('onClose', async () => drainMailDeliveries(pool))
   const schema = { tags: ['Conta e privacidade'] }
   const forgot = z.object({ email: z.email().max(254) }).strict()
   for (const prefix of ['/auth', '/auth/native']) {
@@ -49,7 +54,7 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
       async (req) => {
         const input = forgot.parse(req.body)
         const token = newToken()
-        await transaction(pool, async (client) => {
+        const mailId = await transaction(pool, async (client) => {
           const { rows } = await client.query(
             'SELECT id,email FROM users WHERE email=$1 AND disabled_at IS NULL FOR UPDATE',
             [input.email.trim().toLowerCase()],
@@ -62,7 +67,7 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
             "INSERT INTO password_resets(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 minutes')",
             [tokenHash(token), rows[0].id],
           )
-          await queueMail(
+          return queueMail(
             client,
             rows[0].id,
             rows[0].email,
@@ -70,6 +75,10 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
             `Abra ${process.env.APP_ORIGIN || 'http://localhost:5173'}/redefinir-senha#token=${token}\nO link expira em 30 minutos e só pode ser usado uma vez. Se não solicitou, ignore esta mensagem.`,
           )
         })
+        if (mailId)
+          scheduleMailDelivery(pool, mailId, () =>
+            req.log.warn('Entrega de email adiada para o cron.'),
+          )
         return {
           ok: true,
           message:
@@ -89,7 +98,7 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
       async (req) => {
         const input = reset.parse(req.body),
           hash = await hashPassword(input.password)
-        await transaction(pool, async (client) => {
+        const mailId = await transaction(pool, async (client) => {
           const { rows } = await client.query(
             'SELECT r.user_id,u.email FROM password_resets r JOIN users u ON u.id=r.user_id WHERE token_hash=$1 AND used_at IS NULL AND expires_at>now() AND u.disabled_at IS NULL FOR UPDATE OF r',
             [tokenHash(input.token)],
@@ -111,7 +120,7 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
           await client.query('DELETE FROM sessions WHERE user_id=$1', [
             rows[0].user_id,
           ])
-          await queueMail(
+          return queueMail(
             client,
             rows[0].user_id,
             rows[0].email,
@@ -119,6 +128,9 @@ export async function platformRoutes(app: FastifyInstance, pool: Pool) {
             'Sua senha foi alterada. Todas as sessões anteriores foram encerradas. Se não reconhece esta alteração, contate o responsável pelo projeto.',
           )
         })
+        scheduleMailDelivery(pool, mailId, () =>
+          req.log.warn('Entrega de email adiada para o cron.'),
+        )
         return { ok: true }
       },
     )
