@@ -22,6 +22,7 @@ import { platformRoutes } from './modules/privacy/routes.js'
 import { mediaRoutes } from './modules/media/routes.js'
 import { interactionsRoutes } from './modules/interactions/routes.js'
 import { billingRoutes } from './modules/billing/routes.js'
+import { drainMailDeliveries } from './services/mail.js'
 
 export async function buildApp(
   options: {
@@ -165,6 +166,9 @@ export async function buildApp(
     // Fastify records prefixed paths. Keep server root so generated clients do not duplicate /api.
     return document
   })
-  if (!options.pool) app.addHook('onClose', async () => pool.end())
+  if (!options.pool) app.addHook('onClose', async () => {
+    await drainMailDeliveries(pool)
+    await pool.end()
+  })
   return app
 }

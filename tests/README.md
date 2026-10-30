@@ -35,6 +35,11 @@ As terminações `.test.ts` e `.spec.ts` são convenções de identificação do
 | [react-runtime.test.ts](unit/react-runtime.test.ts) | Renderização real com as versões instaladas de React e React DOM, para detectar incompatibilidades entre os pacotes antes dos testes de navegador. |
 | [rate-limit.test.ts](unit/rate-limit.test.ts) | Bloqueio HTTP 429 após excesso de tentativas, isolamento entre IPs e agrupamento da mesma sub-rede IPv6, sem acesso ao banco. |
 | [database-pool.test.ts](unit/database-pool.test.ts) | Prazos de consultas/transações e tratamento de desconexão ociosa sem expor dados privados nos logs. |
+| [migration-checksum.test.ts](unit/migration-checksum.test.ts) | Hash canônico entre Windows/Linux e rejeição de alteração de SQL já registrado. |
+| [neon-backup-objects.test.ts](unit/neon-backup-objects.test.ts) | Cópia de objetos cifrados, limites de leitura, hash e rejeição de conteúdo sem envelope. |
+| [neon-backup-recovery.test.ts](unit/neon-backup-recovery.test.ts) | Marcador autenticado, limite de 26 horas e destinos de restauração exclusivamente locais. |
+| [neon-backup-private.test.ts](unit/neon-backup-private.test.ts) | Manifesto completo, chaves independentes e descriptografia de envelopes privados sem exibir conteúdo. |
+| [mail-delivery-routes.test.ts](unit/mail-delivery-routes.test.ts) | Entrega após commit, resposta sem espera SMTP, ciclo de vida Vercel, falhas e bloqueio em Preview. |
 | [matching.test.ts](unit/matching.test.ts) | Elegibilidade e compatibilidade entre atleta e treinador: modalidades, objetivos, nível, disponibilidade, orçamento e atendimento. |
 | [crypto.test.ts](unit/crypto.test.ts) | Cifra e decifra dos dados, variação do vetor de inicialização e rejeição de conteúdo adulterado. |
 | [neon-backup.test.ts](unit/neon-backup.test.ts) | Cifra autenticada do backup remoto, adulteracao, chave invalida, retencao restrita e bloqueio de restauracao em producao. O teste real de restauracao ocorre no workflow de backup. |
@@ -55,6 +60,11 @@ Esses testes podem ser executados sem iniciar o ambiente completo em Docker. Ain
 |---|---|
 | [api.test.ts](integration/api.test.ts) | Fluxo esportivo principal: autenticação, perfil, CREF manual, descoberta, solicitação e aceite do vínculo, publicação de treino, execução e persistência. Inclui entradas inválidas e acesso indevido. |
 | [database-integrity.test.ts](integration/database-integrity.test.ts) | Participantes de avaliações vinculados ao contrato, bloqueio de comissão inválida e índices de apoio às FKs. Usa transações revertidas em banco exclusivo de teste. |
+| [database-rules.test.ts](integration/database-rules.test.ts) | Papéis dos contratantes, remetentes do chat, valores financeiros e quatro disputas concorrentes entre transações. |
+| [database-privileges.test.ts](integration/database-privileges.test.ts) | Operações permitidas nas 37 tabelas, históricos preservados, proibição de DDL e detecção de privilégios herdados. Exige manutenção com `CREATEROLE` no banco exclusivo de teste; roles temporárias são revertidas. |
+| [migrations.test.ts](integration/migrations.test.ts) | Baseline, checksums, backfill preservando data, arquivos ausentes/alterados, rollback e execução concorrente única. |
+| [neon-backup-private.test.ts](integration/neon-backup-private.test.ts) | Seleção real de dados privados no PostgreSQL, corpos de e-mail eliminados após envio e rejeição de conteúdo pendente vazio ou corrompido. |
+| [neon-backup-storage.test.ts](integration/neon-backup-storage.test.ts) | HTTP/S3 real com buckets locais: copia, remove a origem e restaura pelo backup; confere hash e cifra e rejeita ausência ou adulteração. Nenhum acesso ao Tigris de produção. |
 | [scheduled-lock.test.ts](integration/scheduled-lock.test.ts) | Trava real do PostgreSQL preservada durante espera externa maior que o limite ocioso geral; outra conexão só adquire a trava depois da finalização. |
 | [platform.test.ts](integration/platform.test.ts) | Consentimentos, dados privados, arquivos cifrados, autorização de mídia, recuperação de senha, sessão nativa e encerramento de conta. Usa banco, armazenamento e captura de e-mail locais. |
 | [interactions.test.ts](integration/interactions.test.ts) | Mensagens, leitura, eventos, avaliações e consultorias: persistência, isolamento entre usuários e conflito de horários. |

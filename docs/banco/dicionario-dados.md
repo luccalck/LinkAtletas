@@ -70,6 +70,7 @@ Restrições:
 
 Índices:
 
+- `billing_events_pending_processing`: `CREATE INDEX billing_events_pending_processing ON public.billing_events USING btree (next_attempt_at, received_at) WHERE (processed_at IS NULL)`.
 - `billing_events_pkey`: `CREATE UNIQUE INDEX billing_events_pkey ON public.billing_events USING btree (id)`.
 
 ## billing_jobs
@@ -115,6 +116,7 @@ Restrições:
 
 Restrições:
 
+- `billing_payments_nonnegative`: `CHECK (((amount_cents >= 0) AND (net_cents >= 0) AND (coach_share_cents >= 0) AND (platform_share_cents >= 0)))`.
 - `billing_payments_pkey`: `PRIMARY KEY (id)`.
 - `billing_payments_provider_payment_id_key`: `UNIQUE (provider_payment_id)`.
 - `billing_payments_subscription_id_fkey`: `FOREIGN KEY (subscription_id) REFERENCES billing_subscriptions(id) ON DELETE CASCADE`.
@@ -176,6 +178,7 @@ Restrições:
 
 Restrições:
 
+- `billing_splits_nonnegative`: `CHECK ((amount_cents >= 0))`.
 - `billing_splits_payment_id_fkey`: `FOREIGN KEY (payment_id) REFERENCES billing_payments(id) ON DELETE CASCADE`.
 - `billing_splits_pkey`: `PRIMARY KEY (provider_split_id)`.
 
@@ -353,12 +356,14 @@ Restrições:
 | decided_at | timestamp with time zone | Sim | — |
 | ended_at | timestamp with time zone | Sim | — |
 | cancellation_reason | text | Não | — |
+| athlete_role | text | Não | FK → users |
+| coach_role | text | Não | FK → users |
 
 Restrições:
 
-- `contracts_athlete_id_fkey`: `FOREIGN KEY (athlete_id) REFERENCES users(id) ON DELETE CASCADE`.
+- `contracts_athlete_role_fkey`: `FOREIGN KEY (athlete_id, athlete_role) REFERENCES users(id, role) ON DELETE CASCADE`.
 - `contracts_check`: `CHECK ((athlete_id <> coach_id))`.
-- `contracts_coach_id_fkey`: `FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE`.
+- `contracts_coach_role_fkey`: `FOREIGN KEY (coach_id, coach_role) REFERENCES users(id, role) ON DELETE CASCADE`.
 - `contracts_members_unique`: `UNIQUE (id, athlete_id, coach_id)`.
 - `contracts_pkey`: `PRIMARY KEY (id)`.
 - `contracts_status_check`: `CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'rejected'::text, 'cancelled'::text, 'suspended'::text])))`.
@@ -440,6 +445,7 @@ Restrições:
 Índices:
 
 - `idx_mail_outbox_user_id_fkey`: `CREATE INDEX idx_mail_outbox_user_id_fkey ON public.mail_outbox USING btree (user_id)`.
+- `mail_outbox_pending_delivery`: `CREATE INDEX mail_outbox_pending_delivery ON public.mail_outbox USING btree (next_attempt_at, created_at) WHERE ((sent_at IS NULL) AND (attempts < 5))`.
 - `mail_outbox_pkey`: `CREATE UNIQUE INDEX mail_outbox_pkey ON public.mail_outbox USING btree (id)`.
 
 ## media
@@ -536,13 +542,16 @@ Restrições:
 | media_id | uuid | Sim | FK → media |
 | created_at | timestamp with time zone | Não | — |
 | read_at | timestamp with time zone | Sim | — |
+| athlete_id | uuid | Não | FK → contracts |
+| coach_id | uuid | Não | FK → contracts |
 
 Restrições:
 
-- `messages_contract_id_fkey`: `FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE`.
+- `messages_contract_members_fkey`: `FOREIGN KEY (contract_id, athlete_id, coach_id) REFERENCES contracts(id, athlete_id, coach_id) ON UPDATE CASCADE ON DELETE CASCADE`.
 - `messages_media_id_fkey`: `FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE SET NULL`.
 - `messages_pkey`: `PRIMARY KEY (id)`.
 - `messages_sender_id_fkey`: `FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE`.
+- `messages_sender_participant`: `CHECK (((sender_id = athlete_id) OR (sender_id = coach_id)))`.
 
 Índices:
 
@@ -611,6 +620,7 @@ Restrições:
 Índices:
 
 - `idx_password_resets_user_id_fkey`: `CREATE INDEX idx_password_resets_user_id_fkey ON public.password_resets USING btree (user_id)`.
+- `password_resets_expiry`: `CREATE INDEX password_resets_expiry ON public.password_resets USING btree (expires_at)`.
 - `password_resets_pkey`: `CREATE UNIQUE INDEX password_resets_pkey ON public.password_resets USING btree (token_hash)`.
 
 ## privacy_requests
@@ -770,6 +780,7 @@ Restrições:
 | Coluna | Tipo PostgreSQL | Nulo | Chave/restrição |
 |---|---|---|---|
 | version | text | Não | PK |
+| checksum | text | Não | — |
 | applied_at | timestamp with time zone | Não | — |
 
 Restrições:
@@ -804,11 +815,11 @@ Restrições:
 
 | Coluna | Tipo PostgreSQL | Nulo | Chave/restrição |
 |---|---|---|---|
-| id | uuid | Não | PK |
+| id | uuid | Não | UNIQUE; PK |
 | name | text | Não | — |
 | email | text | Não | UNIQUE |
 | password_hash | text | Não | — |
-| role | text | Não | — |
+| role | text | Não | UNIQUE |
 | created_at | timestamp with time zone | Não | — |
 | disabled_at | timestamp with time zone | Sim | — |
 
@@ -816,6 +827,7 @@ Restrições:
 
 - `users_email_check`: `CHECK ((email = lower(email)))`.
 - `users_email_key`: `UNIQUE (email)`.
+- `users_id_role_unique`: `UNIQUE (id, role)`.
 - `users_name_check`: `CHECK (((length(name) >= 2) AND (length(name) <= 100)))`.
 - `users_pkey`: `PRIMARY KEY (id)`.
 - `users_role_check`: `CHECK ((role = ANY (ARRAY['athlete'::text, 'coach'::text, 'admin'::text])))`.
@@ -823,6 +835,7 @@ Restrições:
 Índices:
 
 - `users_email_key`: `CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)`.
+- `users_id_role_unique`: `CREATE UNIQUE INDEX users_id_role_unique ON public.users USING btree (id, role)`.
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`.
 
 ## verification_audit

@@ -881,6 +881,14 @@
     },
     {
       "table_name": "contracts",
+      "column_name": "athlete_role",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "contracts",
       "column_name": "cancellation_reason",
       "data_type": "text",
       "udt_name": "text",
@@ -892,6 +900,14 @@
       "column_name": "coach_id",
       "data_type": "uuid",
       "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "contracts",
+      "column_name": "coach_role",
+      "data_type": "text",
+      "udt_name": "text",
       "is_nullable": "NO",
       "column_default": null
     },
@@ -1313,9 +1329,25 @@
     },
     {
       "table_name": "messages",
+      "column_name": "athlete_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "messages",
       "column_name": "body_ciphertext",
       "data_type": "text",
       "udt_name": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "messages",
+      "column_name": "coach_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
       "is_nullable": "NO",
       "column_default": null
     },
@@ -1873,6 +1905,14 @@
     },
     {
       "table_name": "schema_migrations",
+      "column_name": "checksum",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "schema_migrations",
       "column_name": "version",
       "data_type": "text",
       "udt_name": "text",
@@ -2289,6 +2329,19 @@
     },
     {
       "table_name": "billing_payments",
+      "name": "billing_payments_nonnegative",
+      "type": "c",
+      "definition": "CHECK (((amount_cents >= 0) AND (net_cents >= 0) AND (coach_share_cents >= 0) AND (platform_share_cents >= 0)))",
+      "columns": [
+        "amount_cents",
+        "net_cents",
+        "coach_share_cents",
+        "platform_share_cents"
+      ],
+      "foreign_table": null
+    },
+    {
+      "table_name": "billing_payments",
       "name": "billing_payments_pkey",
       "type": "p",
       "definition": "PRIMARY KEY (id)",
@@ -2384,6 +2437,16 @@
       "definition": "PRIMARY KEY (id)",
       "columns": [
         "id"
+      ],
+      "foreign_table": null
+    },
+    {
+      "table_name": "billing_splits",
+      "name": "billing_splits_nonnegative",
+      "type": "c",
+      "definition": "CHECK ((amount_cents >= 0))",
+      "columns": [
+        "amount_cents"
       ],
       "foreign_table": null
     },
@@ -2660,11 +2723,12 @@
     },
     {
       "table_name": "contracts",
-      "name": "contracts_athlete_id_fkey",
+      "name": "contracts_athlete_role_fkey",
       "type": "f",
-      "definition": "FOREIGN KEY (athlete_id) REFERENCES users(id) ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (athlete_id, athlete_role) REFERENCES users(id, role) ON DELETE CASCADE",
       "columns": [
-        "athlete_id"
+        "athlete_id",
+        "athlete_role"
       ],
       "foreign_table": "users"
     },
@@ -2681,11 +2745,12 @@
     },
     {
       "table_name": "contracts",
-      "name": "contracts_coach_id_fkey",
+      "name": "contracts_coach_role_fkey",
       "type": "f",
-      "definition": "FOREIGN KEY (coach_id) REFERENCES users(id) ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (coach_id, coach_role) REFERENCES users(id, role) ON DELETE CASCADE",
       "columns": [
-        "coach_id"
+        "coach_id",
+        "coach_role"
       ],
       "foreign_table": "users"
     },
@@ -2964,11 +3029,13 @@
     },
     {
       "table_name": "messages",
-      "name": "messages_contract_id_fkey",
+      "name": "messages_contract_members_fkey",
       "type": "f",
-      "definition": "FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE",
+      "definition": "FOREIGN KEY (contract_id, athlete_id, coach_id) REFERENCES contracts(id, athlete_id, coach_id) ON UPDATE CASCADE ON DELETE CASCADE",
       "columns": [
-        "contract_id"
+        "contract_id",
+        "athlete_id",
+        "coach_id"
       ],
       "foreign_table": "contracts"
     },
@@ -3001,6 +3068,18 @@
         "sender_id"
       ],
       "foreign_table": "users"
+    },
+    {
+      "table_name": "messages",
+      "name": "messages_sender_participant",
+      "type": "c",
+      "definition": "CHECK (((sender_id = athlete_id) OR (sender_id = coach_id)))",
+      "columns": [
+        "sender_id",
+        "athlete_id",
+        "coach_id"
+      ],
+      "foreign_table": null
     },
     {
       "table_name": "metric_types",
@@ -3399,6 +3478,17 @@
     },
     {
       "table_name": "users",
+      "name": "users_id_role_unique",
+      "type": "u",
+      "definition": "UNIQUE (id, role)",
+      "columns": [
+        "id",
+        "role"
+      ],
+      "foreign_table": null
+    },
+    {
+      "table_name": "users",
       "name": "users_name_check",
       "type": "c",
       "definition": "CHECK (((length(name) >= 2) AND (length(name) <= 100)))",
@@ -3581,6 +3671,11 @@
     },
     {
       "tablename": "billing_events",
+      "indexname": "billing_events_pending_processing",
+      "indexdef": "CREATE INDEX billing_events_pending_processing ON public.billing_events USING btree (next_attempt_at, received_at) WHERE (processed_at IS NULL)"
+    },
+    {
+      "tablename": "billing_events",
       "indexname": "billing_events_pkey",
       "indexdef": "CREATE UNIQUE INDEX billing_events_pkey ON public.billing_events USING btree (id)"
     },
@@ -3756,6 +3851,11 @@
     },
     {
       "tablename": "mail_outbox",
+      "indexname": "mail_outbox_pending_delivery",
+      "indexdef": "CREATE INDEX mail_outbox_pending_delivery ON public.mail_outbox USING btree (next_attempt_at, created_at) WHERE ((sent_at IS NULL) AND (attempts < 5))"
+    },
+    {
+      "tablename": "mail_outbox",
       "indexname": "mail_outbox_pkey",
       "indexdef": "CREATE UNIQUE INDEX mail_outbox_pkey ON public.mail_outbox USING btree (id)"
     },
@@ -3856,6 +3956,11 @@
     },
     {
       "tablename": "password_resets",
+      "indexname": "password_resets_expiry",
+      "indexdef": "CREATE INDEX password_resets_expiry ON public.password_resets USING btree (expires_at)"
+    },
+    {
+      "tablename": "password_resets",
       "indexname": "password_resets_pkey",
       "indexdef": "CREATE UNIQUE INDEX password_resets_pkey ON public.password_resets USING btree (token_hash)"
     },
@@ -3953,6 +4058,11 @@
       "tablename": "users",
       "indexname": "users_email_key",
       "indexdef": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)"
+    },
+    {
+      "tablename": "users",
+      "indexname": "users_id_role_unique",
+      "indexdef": "CREATE UNIQUE INDEX users_id_role_unique ON public.users USING btree (id, role)"
     },
     {
       "tablename": "users",

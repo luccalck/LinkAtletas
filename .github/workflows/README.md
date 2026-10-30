@@ -4,7 +4,8 @@
 |---|---|---|
 | [ci.yml](ci.yml) | Todos os pushes, pull request ou execucao manual | Tipos/build, unidade/API, navegador, backup, esquema/diagramas, verificacoes moveis e HTTPS local. |
 | [docs.yml](docs.yml) | Push de documentacao/README ou execucao manual | Links locais e contratos documentados, sem iniciar servicos. |
-| [neon-backup.yml](neon-backup.yml) | Diario, 06:30 UTC (03:30 em Sao Paulo), ou manual | Snapshot Neon somente leitura, cifra AES-256-GCM, copia Tigris privada e restauracao automatica em PostgreSQL 18 temporario. |
+| [neon-backup.yml](neon-backup.yml) | Diario, 06:30 UTC (03:30 em Sao Paulo), ou manual | Backup v2 do Neon e arquivos privados ativos, cifra AES-256-GCM, restauracao em PostgreSQL 18/S3 locais e ensaio isolado da API. |
+| [neon-backup-monitor.yml](neon-backup-monitor.yml) | A cada hora, no minuto 17, ou manual | Confere no Tigris a ultima recuperacao completa validada, com idade maxima de 26 horas, sem conectar ao Neon. |
 | [android.yml](android.yml) | Manual ou chamada por outro workflow | Compilacao, inicializacao e ensaio integrado do APK. |
 
 ## Android
@@ -70,4 +71,16 @@ As Actions permitidas no repositorio sao as oficiais do GitHub e `pnpm/action-se
 
 ## Backup de producao
 
-O workflow de backup nao roda em PRs e utiliza credenciais exclusivas de leitura do Neon e de um unico bucket Tigris. Nao envia dumps ou dados pessoais para artifacts/logs. Consulta o [procedimento](../../docs/operacao/neon.md#backup-independente-no-tigris) para secrets, recuperacao e limites. O agendamento do GitHub pode atrasar; conferir a ultima execucao e habilitar notificacoes de falha.
+O workflow de backup nao roda em PRs. Usa conta Neon somente leitura, credencial S3 somente leitura para os arquivos da aplicacao e credencial de destino restrita ao bucket privado de backup. O formato v2 preserva dump, arquivos ativos, checksums das migrations, extensoes e privilegios de dados da role runtime. Nao envia dumps ou dados pessoais para artifacts/logs.
+
+Depois da copia, restaura banco e objetos em PostgreSQL 18 e S3 locais exclusivos do runner. Confere contagens, restricoes, checksums, cifra original e operacoes sinteticas da API com conta ficticia e role limitada. O ensaio nao envia SMTP externo nem realiza pagamentos. E necessario configurar a chave exclusiva do backup, a chave original dos dados e `NEON_BACKUP_VALIDATION_KEY`, exclusiva dos marcadores. O fingerprint nao substitui a chave original.
+
+Somente a recuperacao completa publica um marcador autenticado de validacao. Backups v1 anteriores e um upload v2 sem restauracao nao comprovam esse resultado. O monitor horario e independente do job diario: consulta o Tigris, exige backup validado com ate 26 horas desde a criacao do snapshot e confere existencia, tamanho e hash declarado nos metadados do arquivo, sem repetir a restauracao nem abrir conexao com o Neon. Falha se o marcador estiver ausente, atrasado, alterado ou inacessivel. Usa leitura do bucket e a chave de validacao; nao recebe chaves de cifra do dump/dados nem credenciais PostgreSQL.
+
+Os objetivos academicos sao RPO de 24 horas e RTO de 60 minutos, sem SLA. O GitHub pode atrasar agendas; conferir a ultima execucao de ambos os workflows e habilitar notificacoes de falha das Actions. A existencia dos arquivos de workflow nao comprova que secrets, agendamentos ou uma recuperacao recente estejam funcionando. Consultar o [procedimento](../../docs/operacao/neon.md#backup-independente-no-tigris) para configuracao, retencao de sete dias, recuperacao e limites.
+
+## Integridade das migrations na CI
+
+A suite [migrations.test.ts](../../tests/integration/migrations.test.ts) verifica SHA-256 com normalizacao LF/CRLF, baseline historica, divergencias, arquivos ausentes, rollback, preservacao de `applied_at` e aplicacao concorrente unica. A suite [database-rules.test.ts](../../tests/integration/database-rules.test.ts) verifica papeis, participantes, valores financeiros, filas, privacidade e concorrencia no PostgreSQL. Ambas usam bancos isolados `_test`; a CI nao usa producao como destino.
+
+A baseline 001-007 foi auditada contra o conteudo do commit `3a09d67`; ela permite completar checksums legados e nao prova a execucao historica de cada arquivo no banco.

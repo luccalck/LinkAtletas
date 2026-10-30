@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { createPool } from '../../server/db/pool.js'
 import { migrate } from '../../server/db/migrate.js'
 import { buildApp } from '../../server/app.js'
-import { deliverOutbox } from '../../server/services/mail.js'
+import { drainMailDeliveries } from '../../server/services/mail.js'
 import { expireVerifications } from '../../server/modules/accounts/verification.js'
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
@@ -489,7 +489,8 @@ describe.sequential('Plataforma, SMTP e S3 reais locais', () => {
     })
     expect(missing.json()).toEqual(exists.json())
     expect(exists.statusCode).toBe(200)
-    expect((await deliverOutbox(pool)).sent).toBeGreaterThan(0)
+    await drainMailDeliveries(pool)
+    expect((await pool.query('SELECT sent_at FROM mail_outbox WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1', [stranger.user.id])).rows[0].sent_at).not.toBeNull()
     const listing = (await (
       await fetch('http://127.0.0.1:8025/api/v1/messages')
     ).json()) as any

@@ -14,8 +14,8 @@ erDiagram
   users ||--o{ consultation_history : actor_id
   consultations ||--o{ consultation_history : consultation_id
   contracts ||--o{ consultations : contract_id
-  users ||--o{ contracts : athlete_id
-  users ||--o{ contracts : coach_id
+  users ||--o{ contracts : athlete_id_athlete_role
+  users ||--o{ contracts : coach_id_coach_role
   workouts ||--o| executions : workout_id
   workouts ||--o{ exercise_blocks : workout_id
   users o|--o{ mail_outbox : user_id
@@ -24,7 +24,7 @@ erDiagram
   media ||--o{ media_feedback : media_id
   media o|--o{ media_uploads : media_id
   users ||--o{ media_uploads : owner_id
-  contracts ||--o{ messages : contract_id
+  contracts ||--o{ messages : contract_id_athlete_id_coach_id
   media o|--o{ messages : media_id
   users ||--o{ messages : sender_id
   users ||--o{ notifications : user_id
@@ -129,6 +129,8 @@ erDiagram
     uuid coach_id FK
     text status
     timestamp_with_time_zone ended_at
+    text athlete_role FK
+    text coach_role FK
   }
   executions {
     uuid id PK
@@ -171,6 +173,8 @@ erDiagram
     uuid sender_id FK
     text body_ciphertext
     uuid media_id FK
+    uuid athlete_id FK
+    uuid coach_id FK
   }
   metric_types {
     text sport PK

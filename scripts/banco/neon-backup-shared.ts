@@ -6,7 +6,7 @@ import { z } from 'zod'
 export const MAX_BACKUP_BYTES = 128 * 1024 * 1024
 export const backupPattern = /^neon\/\d{4}-\d{2}-\d{2}\/[a-f0-9]{32}\.lan$/
 const header = Buffer.from('LAN1')
-const archiveSchema = z.object({
+const legacyArchiveSchema = z.object({
   version: z.literal(1),
   createdAt: z.iso.datetime(),
   tableCounts: z.record(z.string().regex(/^[a-z_][a-z0-9_]*$/), z.number().int().nonnegative()),
@@ -14,7 +14,84 @@ const archiveSchema = z.object({
   dataKeyFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   dumpBase64: z.string().min(8),
 }).strict()
+const identifier = z.string().regex(/^[a-z_][a-z0-9_]*$/)
+const hash = z.string().regex(/^[a-f0-9]{64}$/)
+const archiveSchema = z.discriminatedUnion('version', [legacyArchiveSchema, legacyArchiveSchema.extend({
+  version: z.literal(2),
+  objects: z.array(z.object({
+    sourceKey: z.string().min(1).max(1024),
+    backupKey: z.string().regex(/^neon\/\d{4}-\d{2}-\d{2}\/[a-f0-9]{32}\/objects\/[a-f0-9]{64}$/),
+    bytes: z.number().int().positive().max(MAX_BACKUP_BYTES),
+    sha256: hash,
+  }).strict()),
+  extensions: z.array(z.object({ name: identifier, version: z.string().regex(/^[0-9][a-z0-9_.-]*$/) }).strict()),
+  migrationChecksums: z.record(z.string().regex(/^\d{3}_[a-z0-9_]+\.sql$/), hash),
+  runtimePrivileges: z.record(identifier, z.array(z.enum(['SELECT', 'INSERT', 'UPDATE', 'DELETE']))),
+}).strict()])
 export type NeonArchive = z.infer<typeof archiveSchema>
+export type FullNeonArchive = Extract<NeonArchive, { version: 2 }>
+
+const validationSchema = z.object({
+  version: z.literal(1),
+  backupKey: z.string().regex(backupPattern),
+  archiveSha256: hash,
+  archiveBytes: z.number().int().positive().max(MAX_BACKUP_BYTES),
+  createdAt: z.iso.datetime(),
+  validatedAt: z.iso.datetime(),
+  tables: z.number().int().positive(),
+  objects: z.number().int().nonnegative(),
+  elapsedSeconds: z.number().nonnegative(),
+}).strict()
+export type BackupValidation = z.infer<typeof validationSchema>
+const validationHeader = Buffer.from('LAV1')
+
+export function objectBackupPrefix(key: string) {
+  if (!backupPattern.test(key)) throw new Error('Objeto de backup invalido.')
+  return key.slice(0, -4) + '/objects/'
+}
+
+export function validationKey(key: string) {
+  objectBackupPrefix(key)
+  return 'neon/validated/' + key.slice(-36, -4) + '.lav'
+}
+
+export function encodeValidation(input: BackupValidation, key: Buffer) {
+  const value = validationSchema.parse(input)
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  cipher.setAAD(validationHeader)
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value)), cipher.final()])
+  return Buffer.concat([validationHeader, iv, cipher.getAuthTag(), encrypted])
+}
+
+export function decodeValidation(bytes: Buffer, key: Buffer) {
+  if (bytes.length < 33 || bytes.length > 4096 || !bytes.subarray(0, 4).equals(validationHeader)) throw new Error('Validacao de backup invalida.')
+  const decipher = createDecipheriv('aes-256-gcm', key, bytes.subarray(4, 16))
+  decipher.setAAD(validationHeader)
+  decipher.setAuthTag(bytes.subarray(16, 32))
+  const value = Buffer.concat([decipher.update(bytes.subarray(32)), decipher.final()])
+  return validationSchema.parse(JSON.parse(value.toString('utf8')))
+}
+
+export function assertFreshValidation(input: BackupValidation, now = new Date()) {
+  const value = validationSchema.parse(input)
+  const created = Date.parse(value.createdAt)
+  const validated = Date.parse(value.validatedAt)
+  const age = now.getTime() - created
+  if (!Number.isFinite(age) || age > 26 * 3600000 || age < -300000 || validated < created || validated > now.getTime() + 300000 || value.createdAt.slice(0, 10) !== value.backupKey.split('/')[1]) {
+    throw new Error('Ultimo backup validado ausente, atrasado ou com horario invalido.')
+  }
+  return value
+}
+
+export function restoreStorageSettings(endpointValue: string, bucket: string) {
+  const endpoint = new URL(endpointValue)
+  if (endpoint.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname) ||
+    endpoint.username || endpoint.password || endpoint.search || endpoint.hash || !/^linkatletas-restore-[a-z0-9-]+-test$/.test(bucket)) {
+    throw new Error('Restauracao de objetos exige bucket local exclusivo com sufixo -test.')
+  }
+  return { endpoint, bucket }
+}
 
 export function backupKey(value: string) {
   if (!/^[A-Za-z0-9+/]{43}=$/.test(value)) throw new Error('Chave de backup invalida.')
@@ -70,7 +147,7 @@ export function sourceDatabase(value: string) {
 export function restoreDatabase(value: string) {
   const url = new URL(value)
   if (!['postgresql:', 'postgres:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
-      !decodeURIComponent(url.pathname.slice(1)).endsWith('_test')) throw new Error('Restauracao exige base local isolada com sufixo _test.')
+      !/^[a-z][a-z0-9_]*_test$/.test(decodeURIComponent(url.pathname.slice(1)))) throw new Error('Restauracao exige base local isolada com sufixo _test.')
   url.search = ''
   url.searchParams.set('sslmode', 'disable')
   return url
@@ -101,6 +178,7 @@ export function backupStorage() {
   const client = new S3Client({
     endpoint: endpoint.toString(), region: 'auto', forcePathStyle: true,
     credentials: { accessKeyId: required('NEON_BACKUP_ACCESS_KEY'), secretAccessKey: required('NEON_BACKUP_SECRET_KEY') },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
     requestHandler: { connectionTimeout: 15000, requestTimeout: 120000 },
   })
   return { client, bucket, endpoint }
